@@ -12,7 +12,7 @@ def pp_tag values
 	values_str = values.map { |v| v.length > 64 ? (v.slice(0, 64) + '...') : v }
 
 	case values.length
-	when 0 then 'none'
+	when 0 then '- (empty)'
 	when 1 then values_str[0]
 	else sprintf("(%d) [%s]", values.length, values_str.join(', '))
 	end
@@ -78,6 +78,14 @@ class OggAlbum
 		end
 	end
 
+	def tags_used
+		s = Set.new
+		@files.each do |file, tags|
+			s.merge tags.keys
+		end
+		s.to_a.map { |v| v.downcase }
+	end
+
 	def summary(selected_tag = nil)
 		data = Hash.new { |h, k| h[k] = Array.new(@files.length) }
 
@@ -126,12 +134,42 @@ Usage: #{executable_name} <album directory>"
 end.parse!
 
 def autocomplete(input)
-	%w{ls show set add rm write help exit quit}.grep(/^#{Regexp.escape(input)}/)
+	context = Readline.line_buffer.slice(0, Readline.point - input.length)
+	context.slice!(-1) if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
+	args = Shellwords.shellwords(context)
+
+	props = if args.empty? then %w{ls show set add rm write help exit quit}
+	elsif %w{ls help exit quit}.include?(args[0]) then []
+	elsif args[0] == 'show'
+		if args.size == 1
+			%w{tag}
+		elsif args.size == 2
+			$album.tags_used
+		end
+	elsif %w{add set}.include? args[0]
+		if args.size == 1
+			$album.tags_used
+		end
+	elsif args[0] == 'rm'
+		if args.size == 1
+			$album.tags_used
+		else
+			tag = args[1].upcase
+			$album.summary(tag)[tag].flatten.uniq
+		end
+	end
+
+	(props || []).grep(/^#{Regexp.escape(input)}/).map do |v|
+		v.include?(' ') ? "\"#{v}\"" : v
+	end
 end
 
 def main(album_dir)
-	ogg_album = OggAlbum.new(album_dir)
+	$album = OggAlbum.new(album_dir)
 
+	Readline.completion_append_character = " "
+	#Readline.completer_word_break_characters = "\x00"
+	Readline.completer_quote_characters = "\"'"
 	Readline.completion_proc = ->(input) {
 		autocomplete(input)
 	}
@@ -140,7 +178,7 @@ def main(album_dir)
 		command = Readline.readline("> ", true)
 		break if command.nil? or command.eql?('exit') or command.eql?('quit')
 
-		execute_command(command.strip, ogg_album)
+		execute_command(command.strip)
 	end
 end
 
@@ -158,15 +196,15 @@ def print_album_summary(summary)
 	end
 end
 
-def show_command(command, album)
+def show_command(command)
 	case command.length
 	when 0
-		print_album_summary(album.summary)
+		print_album_summary($album.summary)
 	else
 		case command[0]
 		when 'tag'
 			if command.size == 1 then puts 'You need to specify a tag name'
-			else print_album_summary album.summary(command[1].upcase)
+			else print_album_summary $album.summary(command[1].upcase)
 			end
 		else
 			puts "Unknown command 'show #{command[0]}'"
@@ -174,31 +212,31 @@ def show_command(command, album)
 	end
 end
 
-def execute_command(command, album)
+def execute_command(command)
 	command, *args = Shellwords.shellwords(command)
 	case command
-	when 'ls' then album.each_with_index { |file, i| puts sprintf("%4d: %s", i+1, file) }
-	when 'show' then show_command(args, album)
+	when 'ls' then $album.each_with_index { |file, i| puts sprintf("%4d: %s", i+1, file) }
+	when 'show' then show_command(args)
 	when 'set'
 		if command.length < 2
 			puts 'You need to specify the tag to edit and at least one value.'
 		else
-			album.set_tag(*args)
+			$album.set_tag(*args)
 		end
 	when 'add'
 		if command.length < 2
 			puts 'You need to specify the tag to edit and at least one value.'
 		else
-			album.add_tag(*args)
+			$album.add_tag(*args)
 		end
 	when 'rm'
 		if command.length < 1
 			puts 'You need to specify the tag to edit and eventually one or several values.'
 		else
-			album.rm_tag(*args)
+			$album.rm_tag(*args)
 		end
 	when 'write'
-		album.write
+		$album.write
 	when 'help'
 	else
 		puts "Unknown command \"#{args}\""
