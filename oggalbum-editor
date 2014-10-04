@@ -1,0 +1,214 @@
+#!/usr/bin/env ruby
+
+require 'pp'
+require 'readline'
+require 'optparse'
+require 'pathname'
+require 'set'
+require 'shellwords'
+require 'open3'
+
+def pp_tag values
+	values_str = values.map { |v| v.length > 64 ? (v.slice(0, 64) + '...') : v }
+
+	case values.length
+	when 0 then 'none'
+	when 1 then values_str[0]
+	else sprintf("(%d) [%s]", values.length, values_str.join(', '))
+	end
+end
+
+class TagContainer < Hash
+	def initialize(file)
+		super() { |h, k| h[k] = Set.new }
+
+		dump = `vorbiscomment -l "#{file}"`
+		dump.each_line do |l|
+			tag, value = l.split('=', 2)
+			self[tag.upcase].add(value.strip)
+		end
+	end
+
+	def to_s
+		TagContainer.sorted_tags(self.keys).map do |tag|
+			s.push pp_tag(self[tag])
+		end.join "\n"
+	end
+
+	def vorbiscomment_dump
+		dump = []
+
+		TagContainer.sorted_tags(self.keys) do |tag|
+			self[tag].to_a.sort.each { |v| dump << "#{tag}=#{v}" }
+		end
+
+		dump.join "\n"
+	end
+
+	def self.sorted_tags(tags)
+		a = tags.sort
+		a.delete('METADATA_BLOCK_PICTURE') and a.push('METADATA_BLOCK_PICTURE')
+		if block_given? then a.each { |v| yield v }
+		else a
+		end
+	end
+end
+
+class OggAlbum
+	attr_reader :path
+	attr_reader :files
+
+	include Enumerable
+
+	def initialize path
+		@path = Pathname.new path
+		@files = {}
+
+		Dir.glob("#{path}/**/*.ogg") do |song|
+			rel_path = Pathname.new(song).relative_path_from(@path)
+			@files[rel_path] = TagContainer.new(song)
+		end
+	end
+
+	def each
+		if block_given?
+			@files.keys.sort.each { |k| yield k }
+		else
+			@files.keys.sort
+		end
+	end
+
+	def summary(selected_tag = nil)
+		data = Hash.new { |h, k| h[k] = Array.new(@files.length) }
+
+		self.each_with_index do |file, i|
+			tags = @files[file]
+			tags.each do |k, v|
+				next unless selected_tag.nil? or k.eql?(selected_tag)
+				data[k][i] = v.to_a.sort
+			end
+		end
+
+		data
+	end
+
+	def write
+		self.each do |file|
+			o, s = Open3.capture2('vorbiscomment', '-w', File.join(@path, file), :stdin_data => @files[file].vorbiscomment_dump)
+		end
+	end
+
+	def set_tag(tag, *values)
+		tag.upcase!
+		self.each { |file| @files[file][tag].replace(values) }
+	end
+
+	def add_tag(tag, *values)
+		tag.upcase!
+		self.each { |file| @files[file][tag].merge(values) }
+	end
+
+	def rm_tag(tag, *values)
+		tag.upcase!
+		self.each do |file|
+			tags = @files[file]
+			if values.empty? then tags.delete(tag)
+			else tags[tag].subtract(values)
+			end
+		end
+	end
+end
+
+option_parser = OptionParser.new do |opts|
+	executable_name = File.basename($PROGRAM_NAME)
+	opts.banner = "Interactively edit an ogg album
+Usage: #{executable_name} <album directory>"
+end.parse!
+
+def autocomplete(input)
+	%w{ls show set add rm write help exit quit}.grep(/^#{Regexp.escape(input)}/)
+end
+
+def main(album_dir)
+	ogg_album = OggAlbum.new(album_dir)
+
+	Readline.completion_proc = ->(input) {
+		autocomplete(input)
+	}
+
+	loop do
+		command = Readline.readline("> ", true)
+		break if command.nil? or command.eql?('exit') or command.eql?('quit')
+
+		execute_command(command.strip, ogg_album)
+	end
+end
+
+def print_album_summary(summary)
+	TagContainer.sorted_tags(summary.keys) do |tag|
+		puts tag
+
+		if summary[tag].uniq.length == 1
+			puts "\t#{pp_tag(summary[tag][0])}"
+		else
+			summary[tag].each_with_index do |values, i|
+				puts sprintf("\t%4d: %s", i+1, pp_tag(values))
+			end
+		end
+	end
+end
+
+def show_command(command, album)
+	case command.length
+	when 0
+		print_album_summary(album.summary)
+	else
+		case command[0]
+		when 'tag'
+			if command.size == 1 then puts 'You need to specify a tag name'
+			else print_album_summary album.summary(command[1].upcase)
+			end
+		else
+			puts "Unknown command 'show #{command[0]}'"
+		end
+	end
+end
+
+def execute_command(command, album)
+	command, *args = Shellwords.shellwords(command)
+	case command
+	when 'ls' then album.each_with_index { |file, i| puts sprintf("%4d: %s", i+1, file) }
+	when 'show' then show_command(args, album)
+	when 'set'
+		if command.length < 2
+			puts 'You need to specify the tag to edit and at least one value.'
+		else
+			album.set_tag(*args)
+		end
+	when 'add'
+		if command.length < 2
+			puts 'You need to specify the tag to edit and at least one value.'
+		else
+			album.add_tag(*args)
+		end
+	when 'rm'
+		if command.length < 1
+			puts 'You need to specify the tag to edit and eventually one or several values.'
+		else
+			album.rm_tag(*args)
+		end
+	when 'write'
+		album.write
+	when 'help'
+	else
+		puts "Unknown command \"#{args}\""
+	end
+end
+
+album_dir = ARGV.shift
+if album_dir && Dir.exists?(album_dir)
+	main(album_dir)
+else
+	STDERR.puts "error: you must provide a JSON file as an argument"
+	exit 1
+end
