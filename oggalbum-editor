@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+require 'rubygems'
 require 'pp'
 require 'readline'
 require 'optparse'
@@ -7,6 +8,8 @@ require 'pathname'
 require 'set'
 require 'shellwords'
 require 'open3'
+require 'base64'
+require 'exiftool'
 
 def pp_tag values
 	values_str = values.map { |v| v.length > 64 ? (v.slice(0, 64) + '...') : v }
@@ -16,6 +19,36 @@ def pp_tag values
 	when 1 then values_str[0]
 	else sprintf("(%d) [%s]", values.length, values_str.join(', '))
 	end
+end
+
+def flac_block_picture(image, desc = '')
+	begin
+		image = File.expand_path(image)
+		img = Exiftool.new(image)
+		content = IO.binread(image)
+	rescue
+		raise ArgumentError, "\"#{image}\" cannot be read"
+	end
+
+	meta = img.results[0].to_hash
+	mime = meta[:mime_type]
+
+	raise(ArgumentError, "Unsupported image type. Use JPEG or PNG.") unless ['image/png', 'image/jpeg'].include?(mime)
+
+	pack = [
+		3, # Front cover
+		mime.length,
+		mime,
+		desc.bytesize,
+		desc,
+		meta[:image_width],
+		meta[:image_height],
+		meta[:color_components] * meta[:bits_per_sample],
+		0, # palette
+		content.length,
+		content
+	].pack(sprintf("L>L>A%dL>a%dL>L>L>L>L>a*", mime.length, desc.bytesize))
+	Base64.strict_encode64(pack)
 end
 
 class TagContainer < Hash
@@ -108,11 +141,19 @@ class OggAlbum
 
 	def set_tag(tag, *values)
 		tag.upcase!
+		tag = 'METADATA_BLOCK_PICTURE' if tag == 'PICTURE'
+		if tag == 'METADATA_BLOCK_PICTURE'
+			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
+		end
 		self.each { |file| @files[file][tag].replace(values) }
 	end
 
 	def add_tag(tag, *values)
 		tag.upcase!
+		tag = 'METADATA_BLOCK_PICTURE' if tag == 'PICTURE'
+		if tag == 'METADATA_BLOCK_PICTURE'
+			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
+		end
 		self.each { |file| @files[file][tag].merge(values) }
 	end
 
@@ -135,27 +176,51 @@ end.parse!
 
 def autocomplete(input)
 	context = Readline.line_buffer.slice(0, Readline.point - input.length)
-	context.slice!(-1) if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
-	args = Shellwords.shellwords(context)
+	begin
+		args = Shellwords.shellwords(context)
 
-	props = if args.empty? then %w{ls show set add rm write help exit quit}
-	elsif %w{ls help exit quit}.include?(args[0]) then []
+		# If there is no space after a quoted string, no autocompletion,
+		# or we may end up with things like "something"somethingelse
+		return [] if Readline.completer_quote_characters.include?(context[-1])
+	rescue ArgumentError => ex
+		# We are autocompleting a quoted string
+		# The quote will be the last item in the context, so we dump it
+		context.slice!(-1) if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
+		begin
+			args = Shellwords.shellwords(context)
+		rescue ArgumentError => ex
+			return []
+		end
+	end
+
+	props = []
+	if args.empty? then props = %w{ls show set add rm write help exit quit}
+	elsif %w{ls help exit quit}.include?(args[0]) then props = []
 	elsif args[0] == 'show'
 		if args.size == 1
-			%w{tag}
+			props = %w{tag}
 		elsif args.size == 2
-			$album.tags_used
+			props = $album.tags_used
 		end
 	elsif %w{add set}.include? args[0]
 		if args.size == 1
-			$album.tags_used
+			props = $album.tags_used # TODO add picture
+		elsif %w{METADATA_BLOCK_PICTURE PICTURE}.include? args[1].upcase
+			if args.size == 2
+				props = Readline::FILENAME_COMPLETION_PROC.call(input)
+			end
 		end
 	elsif args[0] == 'rm'
 		if args.size == 1
-			$album.tags_used
+			props = $album.tags_used
 		else
 			tag = args[1].upcase
-			$album.summary(tag)[tag].flatten.uniq
+			if tag == 'METADATA_BLOCK_PICTURE'
+				$stderr.puts
+				$stderr.puts "Autocompletion is not supported for pictures"
+				Readline.refresh_line
+			else props $album.summary(tag)[tag].flatten.uniq
+			end
 		end
 	end
 
@@ -218,19 +283,19 @@ def execute_command(command)
 	when 'ls' then $album.each_with_index { |file, i| puts sprintf("%4d: %s", i+1, file) }
 	when 'show' then show_command(args)
 	when 'set'
-		if command.length < 2
+		if args.length < 2
 			puts 'You need to specify the tag to edit and at least one value.'
 		else
 			$album.set_tag(*args)
 		end
 	when 'add'
-		if command.length < 2
+		if args.length < 2
 			puts 'You need to specify the tag to edit and at least one value.'
 		else
 			$album.add_tag(*args)
 		end
 	when 'rm'
-		if command.length < 1
+		if args.length < 1
 			puts 'You need to specify the tag to edit and eventually one or several values.'
 		else
 			$album.rm_tag(*args)
