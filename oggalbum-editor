@@ -12,7 +12,7 @@ require 'base64'
 require 'exiftool'
 
 def pp_tag values
-	values_str = values.map { |v| v.length > 64 ? (v.slice(0, 64) + '...') : v }
+	values_str = values.map { |v| v.to_s.length > 64 ? (v.to_s.slice(0, 64) + '...') : v }
 
 	case values.length
 	when 0 then '- (empty)'
@@ -221,6 +221,12 @@ class OggAlbum
 
 		@selected_files.replace sel
 	end
+
+	def auto_tracknumber
+		@selected_files.sort.each_with_index do |file, i|
+			@files[file]['TRACKNUMBER'].replace([(i+1).to_s])
+		end
+	end
 end
 
 option_parser = OptionParser.new do |opts|
@@ -250,7 +256,7 @@ def autocomplete(input)
 
 	props = []
 
-	if args.empty? then props = %w{ls select show set add rm write help exit quit}
+	if args.empty? then props = %w{ls select show set add rm auto write help exit quit}
 	elsif %w{ls select help exit quit}.include?(args[0]) then props = []
 	elsif args[0] == 'show'
 		if args.size == 1
@@ -278,6 +284,8 @@ def autocomplete(input)
 			else props = $album.summary(tag)[tag].values.flatten.uniq
 			end
 		end
+	elsif args[0] == 'auto'
+		props = %w{tracknumber}
 	end
 
 	(props || []).grep(/^#{Regexp.escape(input)}/).map do |v|
@@ -373,6 +381,14 @@ def execute_command(command_line)
 			puts 'You need to specify the tag to edit and eventually one or several values.'
 		else
 			$album.rm_tag(*args)
+		end
+	when 'auto'
+		if args.length < 1
+			puts 'You need to specify the auto command you want to execute.'
+		else
+			if args[0] == 'tracknumber'
+				$album.auto_tracknumber()
+			end
 		end
 	when 'write'
 		$album.write
