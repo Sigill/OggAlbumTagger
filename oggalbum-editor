@@ -81,15 +81,14 @@ class TagContainer < Hash
 	def self.sorted_tags(tags)
 		a = tags.sort
 		a.delete('METADATA_BLOCK_PICTURE') and a.push('METADATA_BLOCK_PICTURE')
-		if block_given? then a.each { |v| yield v }
-		else a
-		end
+		block_given? ? a.each { |v| yield v } : a
 	end
 end
 
 class OggAlbum
 	attr_reader :path
 	attr_reader :files
+	attr_reader :selected_files
 
 	include Enumerable
 
@@ -101,32 +100,28 @@ class OggAlbum
 			rel_path = Pathname.new(song).relative_path_from(@path)
 			@files[rel_path] = TagContainer.new(song)
 		end
-	end
 
-	def each
-		if block_given?
-			@files.keys.sort.each { |k| yield k }
-		else
-			@files.keys.sort
-		end
+		@selected_files = Set.new @files.keys
 	end
 
 	def tags_used
 		s = Set.new
-		@files.each do |file, tags|
-			s.merge tags.keys
+		@selected_files.each do |file|
+			s.merge @files[file].keys
 		end
 		s.to_a.map { |v| v.downcase }
 	end
 
 	def summary(selected_tag = nil)
-		data = Hash.new { |h, k| h[k] = Array.new(@files.length) }
+		data = Hash.new { |h, k| h[k] = Hash.new }
 
-		self.each_with_index do |file, i|
+		positions = Hash[@files.keys.sort.each_with_index.to_a]
+
+		@selected_files.each do |file|
 			tags = @files[file]
 			tags.each do |k, v|
 				next unless selected_tag.nil? or k.eql?(selected_tag)
-				data[k][i] = v.to_a.sort
+				data[k][positions[file]] = v.to_a.sort
 			end
 		end
 
@@ -134,8 +129,8 @@ class OggAlbum
 	end
 
 	def write
-		self.each do |file|
-			o, s = Open3.capture2('vorbiscomment', '-w', File.join(@path, file), :stdin_data => @files[file].vorbiscomment_dump)
+		@files.each do |file, tags|
+			o, s = Open3.capture2('vorbiscomment', '-w', File.join(@path, file), :stdin_data => tags.vorbiscomment_dump())
 		end
 	end
 
@@ -145,7 +140,7 @@ class OggAlbum
 		if tag == 'METADATA_BLOCK_PICTURE'
 			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
 		end
-		self.each { |file| @files[file][tag].replace(values) }
+		@selected_files.each { |file| @files[file][tag].replace(values) }
 	end
 
 	def add_tag(tag, *values)
@@ -154,17 +149,77 @@ class OggAlbum
 		if tag == 'METADATA_BLOCK_PICTURE'
 			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
 		end
-		self.each { |file| @files[file][tag].merge(values) }
+		@selected_files.each { |file| @files[file][tag].merge(values) }
 	end
 
 	def rm_tag(tag, *values)
 		tag.upcase!
-		self.each do |file|
+		@selected_files.each do |file|
 			tags = @files[file]
 			if values.empty? then tags.delete(tag)
 			else tags[tag].subtract(values)
 			end
 		end
+	end
+
+	def ls
+		out = []
+		@files.keys.sort.each_with_index do |file, i|
+			out.push sprintf("%s %4d: %s", (@selected_files.include?(file) ? '*' : ' '), i+1, file)
+		end
+		out.join("\n")
+	end
+
+	def select(args)
+		all_files = @files.keys.sort
+		mode = :absolute
+
+		first_rel = !!(args.first =~ /^[+-]/)
+
+		sel = first_rel ? Set.new(@selected_files) : Set.new
+
+		args.each do |selector|
+			case selector
+			when 'all'
+				raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+				sel.replace all_files
+			when /^([+-]?)([1-9]\d*)$/
+				i = $2.to_i - 1
+				raise "Item #{$2} is out of range" if i >= all_files.length
+
+				items = [all_files.slice(i)]
+				case $1
+				when '-'
+					sel.subtract items
+					mode = :cumulative
+				when '+'
+					sel.merge items
+					mode = :cumulative
+				else
+					raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					sel.merge items
+				end
+			when /^([+-]?)(?:([1-9]\d*)-([1-9]\d*))$/
+				i = $2.to_i - 1
+				j = $3.to_i - 1
+				raise "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
+
+				items = all_files.slice(i..j)
+				case $1
+				when '-'
+					sel.subtract items
+					mode = :cumulative
+				when '+'
+					sel.merge items
+					mode = :cumulative
+				else
+					raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					sel.merge items
+				end
+			end
+		end
+
+		@selected_files.replace sel
 	end
 end
 
@@ -181,7 +236,7 @@ def autocomplete(input)
 
 		# If there is no space after a quoted string, no autocompletion,
 		# or we may end up with things like "something"somethingelse
-		return [] if Readline.completer_quote_characters.include?(context[-1])
+		return [] if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
 	rescue ArgumentError => ex
 		# We are autocompleting a quoted string
 		# The quote will be the last item in the context, so we dump it
@@ -194,8 +249,9 @@ def autocomplete(input)
 	end
 
 	props = []
-	if args.empty? then props = %w{ls show set add rm write help exit quit}
-	elsif %w{ls help exit quit}.include?(args[0]) then props = []
+
+	if args.empty? then props = %w{ls select show set add rm write help exit quit}
+	elsif %w{ls select help exit quit}.include?(args[0]) then props = []
 	elsif args[0] == 'show'
 		if args.size == 1
 			props = %w{tag}
@@ -219,7 +275,7 @@ def autocomplete(input)
 				$stderr.puts
 				$stderr.puts "Autocompletion is not supported for pictures"
 				Readline.refresh_line
-			else props $album.summary(tag)[tag].flatten.uniq
+			else props = $album.summary(tag)[tag].values.flatten.uniq
 			end
 		end
 	end
@@ -251,10 +307,11 @@ def print_album_summary(summary)
 	TagContainer.sorted_tags(summary.keys) do |tag|
 		puts tag
 
-		if summary[tag].uniq.length == 1
-			puts "\t#{pp_tag(summary[tag][0])}"
+		if summary[tag].values.uniq.length == 1
+			puts "\t#{pp_tag(summary[tag].first[1])}"
 		else
-			summary[tag].each_with_index do |values, i|
+			summary[tag].keys.sort.each do |i|
+				values = summary[tag][i]
 				puts sprintf("\t%4d: %s", i+1, pp_tag(values))
 			end
 		end
@@ -277,10 +334,27 @@ def show_command(command)
 	end
 end
 
-def execute_command(command)
-	command, *args = Shellwords.shellwords(command)
+def execute_command(command_line)
+	begin
+		command, *args = Shellwords.shellwords(command_line)
+	rescue Exception => ex
+		puts command line, "Invalid command"
+		return
+	end
+
 	case command
-	when 'ls' then $album.each_with_index { |file, i| puts sprintf("%4d: %s", i+1, file) }
+	when 'ls' then puts $album.ls()
+	when 'select'
+		if args.length < 1
+			puts 'You need to specify the files you want to select. Either enter "all", a single number or a range ("3-5").', 'Number and range based selections can be made cumulative by adding a plus or minus sign in front of the selector (ex. "-1-3")'
+		else
+			begin
+				$album.select(args)
+				puts $album.ls()
+			rescue Exception => err
+				puts err
+			end
+		end
 	when 'show' then show_command(args)
 	when 'set'
 		if args.length < 2
@@ -304,7 +378,7 @@ def execute_command(command)
 		$album.write
 	when 'help'
 	else
-		puts "Unknown command \"#{args}\""
+		puts "Unknown command \"#{command}\""
 	end
 end
 
