@@ -96,7 +96,7 @@ class OggAlbum
 		@path = Pathname.new path
 		@files = {}
 
-		Dir.glob("#{path}/**/*.ogg") do |song|
+		Dir.glob("#{path.gsub(/([\[\]\{\}\*\?\\])/, '\\\\\1')}/**/*.ogg") do |song|
 			rel_path = Pathname.new(song).relative_path_from(@path)
 			@files[rel_path] = TagContainer.new(song)
 		end
