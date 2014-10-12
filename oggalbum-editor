@@ -10,6 +10,7 @@ require 'shellwords'
 require 'open3'
 require 'base64'
 require 'exiftool'
+require 'fileutils'
 
 def pp_tag values
 	values_str = values.map { |v| v.to_s.length > 64 ? (v.to_s.slice(0, 64) + '...') : v }
@@ -51,28 +52,71 @@ def flac_block_picture(image, desc = '')
 	Base64.strict_encode64(pack)
 end
 
-class TagContainer < Hash
+class TagContainer
 	def initialize(file)
-		super() { |h, k| h[k] = Set.new }
+		@hash = Hash.new 
 
-		dump = `vorbiscomment -l "#{file}"`
+		dump = `#{Shellwords.shelljoin ['vorbiscomment', '-l', file]}`
 		dump.each_line do |l|
 			tag, value = l.split('=', 2)
-			self[tag.upcase].add(value.strip)
+			self.add_tag(tag)
+			@hash[tag.upcase].add(value.strip)
 		end
 	end
 
+	def [](tag)
+		self.has_tag?(tag) ? @hash[tag.upcase] : Set.new.freeze
+	end
+
+	def has_tag? tag
+		@hash.has_key?(tag.upcase)
+	end
+
+	def add_tag tag
+		@hash[tag.upcase] = Set.new unless self.has_tag?(tag)
+	end
+
+	def rm_tag tag
+		@hash.delete tag.upcase
+	end
+
+	def set_values(tag, *values)
+		self.add_tag tag
+		@hash[tag.upcase].replace(values)
+	end
+
+	def add_values(tag, *values)
+		self.add_tag tag
+		@hash[tag.upcase].merge(values)
+	end
+
+	def rm_values(tag, *values)
+		if values.empty? then @hash.delete(tag.upcase)
+		else
+			@hash[tag.upcase].subtract(values)
+			@hash.delete(tag.upcase) if @hash[tag.upcase].empty?
+		end
+	end
+
+	def tags
+		@hash.keys
+	end
+
+	def each
+		@hash.each { |k, v| yield(k, v) }
+	end
+
 	def to_s
-		TagContainer.sorted_tags(self.keys).map do |tag|
-			s.push pp_tag(self[tag])
+		TagContainer.sorted_tags(@hash.keys).map do |tag|
+			s.push pp_tag(@hash[tag])
 		end.join "\n"
 	end
 
 	def vorbiscomment_dump
 		dump = []
 
-		TagContainer.sorted_tags(self.keys) do |tag|
-			self[tag].to_a.sort.each { |v| dump << "#{tag}=#{v}" }
+		TagContainer.sorted_tags(@hash.keys) do |tag|
+			@hash[tag].to_a.sort.each { |v| dump << "#{tag}=#{v}" }
 		end
 
 		dump.join "\n"
@@ -93,7 +137,7 @@ class OggAlbum
 	include Enumerable
 
 	def initialize path
-		@path = Pathname.new path
+		@path = Pathname.new File.expand_path(path)
 		@files = {}
 
 		Dir.glob("#{path.gsub(/([\[\]\{\}\*\?\\])/, '\\\\\1')}/**/*.ogg") do |song|
@@ -107,7 +151,7 @@ class OggAlbum
 	def tags_used
 		s = Set.new
 		@selected_files.each do |file|
-			s.merge @files[file].keys
+			s.merge @files[file].tags
 		end
 		s.to_a.map { |v| v.downcase }
 	end
@@ -118,8 +162,7 @@ class OggAlbum
 		positions = Hash[@files.keys.sort.each_with_index.to_a]
 
 		@selected_files.each do |file|
-			tags = @files[file]
-			tags.each do |k, v|
+			@files[file].each do |k, v|
 				next unless selected_tag.nil? or k.eql?(selected_tag)
 				data[k][positions[file]] = v.to_a.sort
 			end
@@ -130,7 +173,8 @@ class OggAlbum
 
 	def write
 		@files.each do |file, tags|
-			o, s = Open3.capture2('vorbiscomment', '-w', File.join(@path, file), :stdin_data => tags.vorbiscomment_dump())
+			command = "#{Shellwords.shelljoin ['vorbiscomment', '-w', File.join(@path, file)]}"
+			o, s = Open3.capture2(command, :stdin_data => tags.vorbiscomment_dump())
 		end
 	end
 
@@ -140,7 +184,7 @@ class OggAlbum
 		if tag == 'METADATA_BLOCK_PICTURE'
 			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
 		end
-		@selected_files.each { |file| @files[file][tag].replace(values) }
+		@selected_files.each { |file| @files[file].set_values(tag, *values) }
 	end
 
 	def add_tag(tag, *values)
@@ -149,16 +193,13 @@ class OggAlbum
 		if tag == 'METADATA_BLOCK_PICTURE'
 			values = [ flac_block_picture(values[0], values.length == 2 ? values[1] : '') ]
 		end
-		@selected_files.each { |file| @files[file][tag].merge(values) }
+		@selected_files.each { |file| @files[file].add_values(tag, *values) }
 	end
 
 	def rm_tag(tag, *values)
 		tag.upcase!
 		@selected_files.each do |file|
-			tags = @files[file]
-			if values.empty? then tags.delete(tag)
-			else tags[tag].subtract(values)
-			end
+			@files[file].rm_values(tag, *values)
 		end
 	end
 
@@ -224,7 +265,153 @@ class OggAlbum
 
 	def auto_tracknumber
 		@selected_files.sort.each_with_index do |file, i|
-			@files[file]['TRACKNUMBER'].replace([(i+1).to_s])
+			@files[file].set_values('TRACKNUMBER', (i+1).to_s)
+		end
+	end
+
+	def validate_tag(tag)
+		values = @selected_files.map { |file| @files[file][tag] }
+		values.reduce(true) { |r, v| r && yield(v) }
+	end
+
+	def tag_used_k_times?(tag, k)
+		self.validate_tag(tag) { |v| v.size == k }
+	end
+
+	def tag_used_once?(tag)
+		self.tag_used_k_times?(tag, 1)
+	end
+
+	def tag_unused?(tag)
+		self.tag_used_k_times?(tag, 0)
+	end
+
+	def validate_tags(tags)
+		tags.reduce(true) { |result, tag| result && yield(tag) }
+	end
+
+	def uniq_tag?(tag)
+		values = @selected_files.map { |file| @files[file][tag] }
+		values.reduce(true) { |r, v| r && (v.size == 1) } && (values.map { |v| v.first }.uniq.length == 1)
+	end
+
+	def numeric_tag?(tag)
+		self.validate_tag(tag) { |v| v.first =~ /^[1-9][0-9]*$/ }
+	end
+
+	def check(type)
+		uniq_tags = %w{ALBUM}
+		uniq_tags << 'ALBUMARTIST' if type == 'album'
+
+		common_tags = %w{ARTIST TRACKNUMBER TITLE DATE}
+
+		required_tags = uniq_tags + common_tags
+
+		unless self.validate_tags(uniq_tags) { |tag| self.uniq_tag?(tag) }
+			puts "Each of the following tags must have a single and uniq value among all songs: #{uniq_tags.join ', '}."
+			return false
+		end
+
+		unless self.validate_tags(common_tags) { |tag| self.tag_used_once?(tag) }
+			puts "Each of the following tags must be used once per track: #{common_tags.join ', '}."
+			return false
+		end
+
+		unless self.tag_unused?('DISCNUMBER') or self.tag_used_once?('DISCNUMBER')
+			puts "The DISCNUMBER tag must be either unused or used once per track."
+			return false
+		end
+
+		numeric_tags = %w{TRACKNUMBER}
+		numeric_tags << 'DISCNUMBER' if self.tag_used_once?('DISCNUMBER')
+		unless self.validate_tags(numeric_tags) { |tag| self.numeric_tag?(tag) }
+			puts "The following tags must have numeric values: #{numeric_tags.join ', '}."
+			return false
+		end
+
+		return true
+	end
+
+	def auto_rename(type)
+		return unless self.check(type)
+
+		tn_maxlength = $album.summary('TRACKNUMBER')['TRACKNUMBER'].values.map { |v| v.first }.max_by { |v| v.length }.length
+		tn_format = '%0' + tn_maxlength.to_s + 'd'
+
+		has_discnumber = self.tag_used_once?('DISCNUMBER')
+		if has_discnumber
+			dn_maxlength = $album.summary('DISCNUMBER')['DISCNUMBER'].values.map { |v| v.first }.max_by { |v| v.length }.length
+			dn_format = '%0' + dn_maxlength.to_s + 'd'
+		end
+
+		format_number = lambda do |tags|
+			s = ''
+			if has_discnumber
+				s += sprintf(dn_format, tags['DISCNUMBER'].first.to_i) + '.'
+			end
+			s += sprintf(tn_format, tags['TRACKNUMBER'].first.to_i)
+		end
+
+		case type
+		when 'album'
+			mapping = {}
+			@selected_files.each do |file|
+				tags = @files[file]
+				mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
+					tags['ARTIST'].first, tags['DATE'].first, tags['ALBUM'].first,
+					format_number.call(tags),
+					tags['TITLE'].first)
+			end
+
+			dirname = sprintf('%s - %s - %s',
+				$album.summary('ALBUMARTIST')['ALBUMARTIST'].first[1].first,
+				$album.summary('DATE')['DATE'].first[1].first,
+				$album.summary('ALBUM')['ALBUM'].first[1].first)
+		when 'compilation'
+			mapping = {}
+			@selected_files.each do |file|
+				tags = @files[file]
+				mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
+					tags['ALBUM'].first, format_number.call(tags),
+					tags['ARTIST'].first, tags['DATE'].first, tags['TITLE'].first)
+			end
+
+			dirname = sprintf('%s - %s',
+				$album.summary('DATE')['DATE'].first[1].first,
+				$album.summary('ALBUM')['ALBUM'].first[1].first)
+		end
+
+		if mapping.values.uniq.size != @selected_files.size
+			puts "Generated filenames are not uniq."
+			return
+		end
+
+		begin
+			path = @path.dirname + dirname.gsub(/[\\\/:*?"<>|]/, '')
+			if @path != path
+				FileUtils.mv(@path, path)
+				@path = path
+			end
+		rescue Exception => ex
+			puts "Cannot rename #{@path} to #{path}."
+			puts ex
+		end
+
+		Set.new(@selected_files).each do |file|
+			begin
+				oldpath = File.join(@path, file)
+				newpath = File.join(@path, mapping[file].gsub(/[\\\/:*?"<>|]/, ''))
+
+				if oldpath != newpath
+					FileUtils.mv(oldpath, newpath)
+					@files[mapping[file]] = @files.delete(file)
+				end
+
+				@selected_files.delete(file).add(mapping[file])
+			rescue Exception => ex
+				puts "Cannot rename #{File.join(@path, file)} to #{File.join(@path, mapping[file])}."
+				puts ex
+			end
 		end
 	end
 end
@@ -285,7 +472,9 @@ def autocomplete(input)
 			end
 		end
 	elsif args[0] == 'auto'
-		props = %w{tracknumber}
+		if args.length == 1 then props = %w{tracknumber rename}
+		elsif args.length == 2 and args[1] == 'rename' then props = %w{album compilation}
+		end
 	end
 
 	(props || []).grep(/^#{Regexp.escape(input)}/).map do |v|
@@ -315,7 +504,8 @@ def print_album_summary(summary)
 	TagContainer.sorted_tags(summary.keys) do |tag|
 		puts tag
 
-		if summary[tag].values.uniq.length == 1
+		if (summary[tag].size == $album.selected_files.size) && (summary[tag].values.uniq.length == 1)
+			# If all tracks have only one common value
 			puts "\t#{pp_tag(summary[tag].first[1])}"
 		else
 			summary[tag].keys.sort.each do |i|
@@ -386,8 +576,16 @@ def execute_command(command_line)
 		if args.length < 1
 			puts 'You need to specify the auto command you want to execute.'
 		else
-			if args[0] == 'tracknumber'
-				$album.auto_tracknumber()
+			case args[0]
+			when 'tracknumber' then $album.auto_tracknumber()
+			when 'rename'
+				if args.length < 2
+					puts 'You need to specify if this is an album or a compilation.'
+				elsif %w{album compilation}.include?(args[1])
+					$album.auto_rename(args[1])
+				else
+					puts "Unknown album type \"#{args[1]}\"."
+				end
 			end
 		end
 	when 'write'
@@ -402,6 +600,6 @@ album_dir = ARGV.shift
 if album_dir && Dir.exists?(album_dir)
 	main(album_dir)
 else
-	STDERR.puts "error: you must provide a JSON file as an argument"
+	STDERR.puts "Error: This album does not exists."
 	exit 1
 end
