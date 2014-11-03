@@ -2,46 +2,15 @@
 
 require 'rubygems'
 
-require 'oggalbum/oggalbum'
-require 'oggalbum/tag_container'
+require 'ogg_album_tagger/album'
+require 'ogg_album_tagger/picture'
+require 'ogg_album_tagger/tag_container'
 
 require 'readline'
 require 'optparse'
 require 'shellwords'
 require 'open3'
-require 'base64'
-require 'exiftool'
 require 'fileutils'
-
-def flac_block_picture(image, desc = '')
-	begin
-		image = File.expand_path(image)
-		img = Exiftool.new(image)
-		content = IO.binread(image)
-	rescue
-		raise ArgumentError, "\"#{image}\" cannot be read"
-	end
-
-	meta = img.results[0].to_hash
-	mime = meta[:mime_type]
-
-	raise(ArgumentError, "Unsupported image type. Use JPEG or PNG.") unless ['image/png', 'image/jpeg'].include?(mime)
-
-	pack = [
-		3, # Front cover
-		mime.length,
-		mime,
-		desc.bytesize,
-		desc,
-		meta[:image_width],
-		meta[:image_height],
-		meta[:color_components] * meta[:bits_per_sample],
-		0, # palette
-		content.length,
-		content
-	].pack(sprintf("L>L>A%dL>a%dL>L>L>L>L>a*", mime.length, desc.bytesize))
-	Base64.strict_encode64(pack)
-end
 
 def autocomplete(input)
 	context = Readline.line_buffer.slice(0, Readline.point - input.length)
@@ -104,16 +73,16 @@ def autocomplete(input)
 end
 
 def print_album_summary(summary)
-	Oggalbum::TagContainer.sorted_tags(summary.keys) do |tag|
+	OggAlbumTagger::TagContainer.sorted_tags(summary.keys) do |tag|
 		puts tag
 
 		if (summary[tag].size == $album.selected_files.size) && (summary[tag].values.uniq.length == 1)
 			# If all tracks have only one common value
-			puts "\t" + Oggalbum::TagContainer::pp_tag(summary[tag].first[1])
+			puts "\t" + OggAlbumTagger::TagContainer::pp_tag(summary[tag].first[1])
 		else
 			summary[tag].keys.sort.each do |i|
 				values = summary[tag][i]
-				puts sprintf("\t%4d: %s", i+1, Oggalbum::TagContainer::pp_tag(values))
+				puts sprintf("\t%4d: %s", i+1, OggAlbumTagger::TagContainer::pp_tag(values))
 			end
 		end
 	end
@@ -147,7 +116,7 @@ def handle_picture_args args
 		desc = args.length == 2 ? args[1] : ''
 		args.clear
 		args << 'METADATA_BLOCK_PICTURE'
-		args << flac_block_picture(file, desc)
+		args << OggAlbumTagger::Picture::generate_metadata_block_picture(file, desc)
 	end
 end
 
@@ -155,79 +124,77 @@ def execute_command(command_line)
 	begin
 		command, *args = Shellwords.shellwords(command_line)
 	rescue Exception => ex
-		puts command line, 'Invalid command'
+		puts 'Invalid command.'
 		return
 	end
 
-	case command
-	when 'ls' then ls_command()
-	when 'select'
-		if args.length < 1
-			puts 'You need to specify the files you want to select. Either enter "all", a single number or a range ("3-5").', 'Number and range based selections can be made cumulative by adding a plus or minus sign in front of the selector (ex. "-1-3").'
-		else
-			begin
+	begin
+		case command
+		when 'ls' then ls_command()
+		when 'select'
+			if args.length < 1
+				puts 'You need to specify the files you want to select. Either enter "all", a single number or a range (ex. "3-5").', 'Number and range based selections can be made cumulative by adding a plus or minus sign in front of the selector (ex. "-1-3").'
+			else
 				$album.select(args)
 				ls_command()
-			rescue Exception => err
-				puts err
 			end
-		end
-	when 'show' then show_command(args)
-	when 'set'
-		if args.length < 2
-			puts 'You need to specify the tag to edit and at least one value.'
-		else
-			handle_picture_args args
-
-			$album.set_tag(*args)
-		end
-	when 'add'
-		if args.length < 2
-			puts 'You need to specify the tag to edit and at least one value.'
-		else
-			handle_picture_args args
-
-			$album.add_tag(*args)
-		end
-	when 'rm'
-		if args.length < 1
-			puts 'You need to specify the tag to edit and eventually one or several values.'
-		else
-			$album.rm_tag(*args)
-		end
-	when 'auto'
-		if args.length < 1
-			puts 'You need to specify the auto command you want to execute.'
-		else
-			case args[0]
-			when 'tracknumber' then $album.auto_tracknumber()
-			when 'rename'
-				if args.length < 2
-					puts 'You need to specify if this is an album or a compilation.'
-				elsif %w{album compilation}.include?(args[1])
-					begin
+		when 'show' then show_command(args)
+		when 'set'
+			if args.length < 2
+				puts 'You need to specify the tag to edit and at least one value.'
+			else
+				handle_picture_args(args)
+				$album.set_tag(*args)
+				show_command(['tag', args[0]])
+			end
+		when 'add'
+			if args.length < 2
+				puts 'You need to specify the tag to edit and at least one value.'
+			else
+				handle_picture_args(args)
+				$album.add_tag(*args)
+				show_command(['tag', args[0]])
+			end
+		when 'rm'
+			if args.length < 1
+				puts 'You need to specify the tag to edit and eventually one or several values.'
+			else
+				$album.rm_tag(*args)
+				show_command(['tag', args[0]])
+			end
+		when 'auto'
+			if args.length < 1
+				puts 'You need to specify the auto command you want to execute.'
+			else
+				case args[0]
+				when 'tracknumber' then $album.auto_tracknumber()
+				when 'rename'
+					if args.length < 2
+						puts 'You need to specify if this is an album or a compilation.'
+					elsif %w{album compilation}.include?(args[1])
 						$album.auto_rename(args[1])
-					rescue RuntimeException => ex
-						puts ex
+						ls_command()
+					else
+						puts "Unknown type \"#{args[1]}\"."
 					end
-				else
-					puts "Unknown album type \"#{args[1]}\"."
 				end
 			end
+		when 'write'
+			$album.write
+		when 'help'
+			# TODO
+		else
+			puts "Unknown command \"#{command}\""
 		end
-	when 'write'
-		$album.write
-	when 'help'
-	else
-		puts "Unknown command \"#{command}\""
+	rescue Exception => err
+		puts err
 	end
 end
 
 def main(album_dir)
-	$album = Oggalbum::Oggalbum.new(album_dir)
+	$album = OggAlbumTagger::Album.new(album_dir)
 
 	Readline.completion_append_character = " "
-	#Readline.completer_word_break_characters = "\x00"
 	Readline.completer_quote_characters = "\"'"
 	Readline.completion_proc = ->(input) {
 		autocomplete(input)

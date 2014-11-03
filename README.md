@@ -1,6 +1,6 @@
-# OggAlbum-Editor
+# OggAlbumTagger
 
-Oggalbum-Editor is a command line tool that help you tag albums and compilations made of ogg tracks. It is a wrapper around the vorbiscomment tool.
+OggAlbumTagger is a command line tool that help you tag albums and compilations made of composed tracks. It is a wrapper around the vorbiscomment tool.
 
 ## Available commands
 

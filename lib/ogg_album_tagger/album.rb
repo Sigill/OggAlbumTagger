@@ -1,15 +1,15 @@
-require 'oggalbum/version'
-require 'oggalbum/tag_container'
+require 'ogg_album_tagger/version'
+require 'ogg_album_tagger/tag_container'
 
 require 'set'
 require 'shellwords'
 require 'pathname'
 
-module Oggalbum
+module OggAlbumTagger
 
-# A Oggalbum is simply a hash associating each ogg file relative to a directory
+# An Album is just a hash associating each ogg file found in a directory
 # to a TagContainer. A subset of file can be selected in order to be tagged.
-class Oggalbum
+class Album
 	attr_reader :selected_files
 
 	# Parse each ogg file found in the specified directory (and subdirectories, recursively).
@@ -42,7 +42,7 @@ class Oggalbum
 	# If no tag is specified, all tags are considered.
 	#
 	# The first hash is indexed by the tags used. The second level of hashes is indexed
-	# by the positions of the files in the album and points to a alphabetically sorted
+	# by the positions of the files in the album and points to a alphabetically sorted list
 	# of values associated to the tag.
 	#
 	# {
@@ -126,11 +126,11 @@ class Oggalbum
 		args.each do |selector|
 			case selector
 			when 'all'
-				raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+				raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 				sel.replace all_files
 			when /^([+-]?)([1-9]\d*)$/
 				i = $2.to_i - 1
-				raise "Item #{$2} is out of range" if i >= all_files.length
+				raise ArgumentError, "Item #{$2} is out of range" if i >= all_files.length
 
 				items = [all_files.slice(i)]
 				case $1
@@ -141,13 +141,13 @@ class Oggalbum
 					sel.merge items
 					mode = :cumulative
 				else
-					raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 					sel.merge items
 				end
 			when /^([+-]?)(?:([1-9]\d*)-([1-9]\d*))$/
 				i = $2.to_i - 1
 				j = $3.to_i - 1
-				raise "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
+				raise ArgumentError, "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
 
 				items = all_files.slice(i..j)
 				case $1
@@ -158,7 +158,7 @@ class Oggalbum
 					sel.merge items
 					mode = :cumulative
 				else
-					raise "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 					sel.merge items
 				end
 			end
@@ -219,7 +219,7 @@ class Oggalbum
 	# * DISCNUMBER must be used at most one time per file.
 	# * TRACKNUMBER and DISCNUMBER must have numerical values.
 	#
-	# TODO Check ALBUMARTIST for "Various Artists" in compilations.
+	# TODO Check ALBUMARTIST for "Various artists" in compilations.
 	# TODO Check DATE for being a year.
 	def check(type)
 		uniq_tags = %w{ALBUM}
@@ -230,21 +230,21 @@ class Oggalbum
 		required_tags = uniq_tags + common_tags
 
 		unless validate_tags(uniq_tags) { |tag| uniq_tag?(tag) }
-			raise RuntimeException, "Each of the following tags must have a single and uniq value among all songs: #{uniq_tags.join ', '}."
+			raise RuntimeError, "Each of the following tags must have a single and uniq value among all songs: #{uniq_tags.join ', '}."
 		end
 
 		unless validate_tags(common_tags) { |tag| tag_used_once?(tag) }
-			raise RuntimeException, "Each of the following tags must be used once per track: #{common_tags.join ', '}."
+			raise RuntimeError, "Each of the following tags must be used once per track: #{common_tags.join ', '}."
 		end
 
 		unless tag_unused?('DISCNUMBER') or tag_used_once?('DISCNUMBER')
-			raise RuntimeException, 'The DISCNUMBER tag must be either unused or used once per track.'
+			raise RuntimeError, 'The DISCNUMBER tag must be either unused or used once per track.'
 		end
 
 		numeric_tags = %w{TRACKNUMBER}
 		numeric_tags << 'DISCNUMBER' if self.tag_used_once?('DISCNUMBER')
 		unless validate_tags(numeric_tags) { |tag| numeric_tag?(tag) }
-			raise RuntimeException, "The following tags must have numeric values: #{numeric_tags.join ', '}."
+			raise RuntimeError, "The following tags must have numeric values: #{numeric_tags.join ', '}."
 		end
 	end
 

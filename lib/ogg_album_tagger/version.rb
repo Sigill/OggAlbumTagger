@@ -1,3 +1,3 @@
-module OggAlbum
+module OggAlbumTagger
   VERSION = "0.0.1"
 end

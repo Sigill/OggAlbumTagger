@@ -1,7 +1,7 @@
 require 'shellwords'
 require 'set'
 
-module Oggalbum
+module OggAlbumTagger
 
 # Store the tags of an ogg track.
 #

@@ -1,11 +1,11 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'oggalbum/version'
+require 'ogg_album_tagger/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "oggalbum"
-  spec.version       = OggAlbum::VERSION
+  spec.name          = "ogg_album_tagger"
+  spec.version       = OggAlbumTagger::VERSION
   spec.authors       = ["Cyrille Faucheux"]
   spec.email         = ["cyrille.faucheux@gmail.com"]
   spec.summary       = %q{Interactive edition of ogg tags in an album or a compilation.}
