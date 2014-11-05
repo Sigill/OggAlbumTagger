@@ -5,6 +5,7 @@ require 'rubygems'
 require 'ogg_album_tagger/album'
 require 'ogg_album_tagger/picture'
 require 'ogg_album_tagger/tag_container'
+require 'ogg_album_tagger/command_error'
 
 require 'readline'
 require 'optparse'
@@ -62,8 +63,8 @@ def autocomplete(input)
 			end
 		end
 	elsif args[0] == 'auto'
-		if args.length == 1 then props = %w{tracknumber rename}
-		elsif args.length == 2 and args[1] == 'rename' then props = %w{album compilation}
+		if args.length == 1
+			props = %w{tracknumber rename}
 		end
 	end
 
@@ -169,14 +170,19 @@ def execute_command(command_line)
 				case args[0]
 				when 'tracknumber' then $album.auto_tracknumber()
 				when 'rename'
-					if args.length < 2
-						puts 'You need to specify if this is an album or a compilation.'
-					elsif %w{album compilation}.include?(args[1])
-						$album.auto_rename(args[1])
-						ls_command()
-					else
-						puts "Unknown type \"#{args[1]}\"."
+					dummy, *cli_args = args
+
+					options = {}
+					begin
+						OptionParser.new do |opts|
+							opts.on('--album-date DATE', 'Album date') { |date| options[:album_date] = date }
+						end.parse(cli_args)
+					rescue OptionParser::ParseError => ex
+						raise OggAlbumTagger::CommandError, ex.message
 					end
+
+					$album.auto_rename(options)
+					ls_command()
 				end
 			end
 		when 'write'
@@ -186,7 +192,7 @@ def execute_command(command_line)
 		else
 			puts "Unknown command \"#{command}\""
 		end
-	rescue Exception => err
+	rescue OggAlbumTagger::CommandError => err
 		puts err
 	end
 end

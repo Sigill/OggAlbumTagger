@@ -1,5 +1,6 @@
 require 'ogg_album_tagger/version'
 require 'ogg_album_tagger/tag_container'
+require 'ogg_album_tagger/command_error'
 
 require 'set'
 require 'shellwords'
@@ -126,11 +127,11 @@ class Album
 		args.each do |selector|
 			case selector
 			when 'all'
-				raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+				raise CommandError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 				sel.replace all_files
 			when /^([+-]?)([1-9]\d*)$/
 				i = $2.to_i - 1
-				raise ArgumentError, "Item #{$2} is out of range" if i >= all_files.length
+				raise CommandError, "Item #{$2} is out of range" if i >= all_files.length
 
 				items = [all_files.slice(i)]
 				case $1
@@ -141,13 +142,13 @@ class Album
 					sel.merge items
 					mode = :cumulative
 				else
-					raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					raise CommandError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 					sel.merge items
 				end
 			when /^([+-]?)(?:([1-9]\d*)-([1-9]\d*))$/
 				i = $2.to_i - 1
 				j = $3.to_i - 1
-				raise ArgumentError, "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
+				raise CommandError, "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
 
 				items = all_files.slice(i..j)
 				case $1
@@ -158,7 +159,7 @@ class Album
 					sel.merge items
 					mode = :cumulative
 				else
-					raise ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
+					raise CommandError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
 					sel.merge items
 				end
 			end
@@ -183,6 +184,12 @@ class Album
 	# Test if a tag is used k times on each selected files.
 	def tag_used_k_times?(tag, k)
 		self.validate_tag(tag) { |v| v.size == k }
+	end
+
+	# Test if a tag is used at least one time in an ogg file.
+	def tag_used?(tag)
+		values = @selected_files.map { |file| @files[file][tag] }
+		values.reduce(false) { |r, v| r || v.size > 0 }
 	end
 
 	# Test if a tag is used once on each selected files.
@@ -213,38 +220,40 @@ class Album
 
 	# Verify that the album is properly tagged.
 	#
+	# * ARTIST, TRACKNUMBER, TITLE and DATE must be used once per file.
+	# * DATE must be a valid date.
 	# * ALBUM must be uniq.
-	# * ALBUMARTIST must be uniq unless this album is a compilation
-	# * ARTIST, TRACKNUMBER, TITLE and DATE must be used once time per file.
+	# * ALBUMARTIST should have the value "Various artists" if this album is a compilation.
 	# * DISCNUMBER must be used at most one time per file.
 	# * TRACKNUMBER and DISCNUMBER must have numerical values.
-	#
-	# TODO Check ALBUMARTIST for "Various artists" in compilations.
-	# TODO Check DATE for being a year.
-	def check(type)
-		uniq_tags = %w{ALBUM}
-		uniq_tags << 'ALBUMARTIST' if type == 'album'
-
-		common_tags = %w{ARTIST TRACKNUMBER TITLE DATE}
-
-		required_tags = uniq_tags + common_tags
-
-		unless validate_tags(uniq_tags) { |tag| uniq_tag?(tag) }
-			raise RuntimeError, "Each of the following tags must have a single and uniq value among all songs: #{uniq_tags.join ', '}."
+	def check
+		%w{ARTIST TRACKNUMBER TITLE DATE}.each do |tag|
+			raise CommandError, "The \"#{tag}\" tag must be used once per track." unless tag_used_once?(tag)
 		end
 
-		unless validate_tags(common_tags) { |tag| tag_used_once?(tag) }
-			raise RuntimeError, "Each of the following tags must be used once per track: #{common_tags.join ', '}."
+		raise CommandError, 'The DATE tag must be the year the track was composed.' unless validate_tag('DATE') { |v| v.first.to_s =~ /^\d\d\d\d$/ }
+
+		raise CommandError, "The ALBUM tag must have a single and uniq value among all songs." unless uniq_tag?('ALBUM')
+
+		is_compilation = !uniq_tag?('ARTIST')
+
+		if is_compilation
+			unless uniq_tag?('ALBUM') and $album.summary('ALBUMARTIST')['ALBUMARTIST'].first[1].first != 'Various artists'
+				raise CommandError, 'This album seems to be a compilation. The ALBUMARTIST tag should have the value \"Various artists\".'
+			end
+		else
+			raise CommandError, 'The ALBUMARTIST is only required for compilations.' if tag_used?('ALBUMARTIST')
 		end
 
-		unless tag_unused?('DISCNUMBER') or tag_used_once?('DISCNUMBER')
-			raise RuntimeError, 'The DISCNUMBER tag must be either unused or used once per track.'
+		has_discnumber = tag_used_once?('DISCNUMBER')
+		unless tag_unused?('DISCNUMBER') or has_discnumber
+			raise CommandError, 'The DISCNUMBER tag must be either unused or used once per track.'
 		end
 
 		numeric_tags = %w{TRACKNUMBER}
-		numeric_tags << 'DISCNUMBER' if self.tag_used_once?('DISCNUMBER')
-		unless validate_tags(numeric_tags) { |tag| numeric_tag?(tag) }
-			raise RuntimeError, "The following tags must have numeric values: #{numeric_tags.join ', '}."
+		numeric_tags << 'DISCNUMBER' if has_discnumber
+		numeric_tags.each do |tag|
+			raise CommandError, "The #{tag} tag must have numeric values." unless numeric_tag?(tag)
 		end
 	end
 
@@ -252,22 +261,28 @@ class Album
 	#
 	# For an album, the format is:
 	# Ogg file:  ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE
-	# Directory: ALBUMARTIST - DATE - ALBUM
+	# Directory: ARTIST - DATE - ALBUM
+	#
+	# For a single-artist compilation (an album where tracks have different dates), the format is:
+	# Ogg file:  ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE (DATE)
+	# Directory: ARTIST - ALBUMDATE - ALBUM
 	#
 	# For a compilation, the format is:
 	# Ogg file:  ALBUM - [DISCNUMBER.]TRACKNUMBER - ARTIST - DATE - TITLE
-	# Directory: ALBUM - DATE
+	# Directory: ALBUM - ALBUMDATE
+	#
+	# ALBUMDATE is not a tag, it is an information provided at runtime.
 	#
 	# Disc and track numbers are padded with zeros.
-	def auto_rename(type)
-		check(type)
+	def auto_rename(options)
+		check()
 
-		tn_maxlength = $album.summary('TRACKNUMBER')['TRACKNUMBER'].values.map { |v| v.first }.max_by { |v| v.length }.length
+		tn_maxlength = $album.summary('TRACKNUMBER')['TRACKNUMBER'].values.map { |v| v.first.to_s }.max_by { |v| v.length }.length
 		tn_format = '%0' + tn_maxlength.to_s + 'd'
 
-		has_discnumber = self.tag_used_once?('DISCNUMBER')
+		has_discnumber = tag_used_once?('DISCNUMBER')
 		if has_discnumber
-			dn_maxlength = $album.summary('DISCNUMBER')['DISCNUMBER'].values.map { |v| v.first }.max_by { |v| v.length }.length
+			dn_maxlength = $album.summary('DISCNUMBER')['DISCNUMBER'].values.map { |v| v.first.to_s }.max_by { |v| v.length }.length
 			dn_format = '%0' + dn_maxlength.to_s + 'd'
 		end
 
@@ -279,22 +294,19 @@ class Album
 			s += sprintf(tn_format, tags['TRACKNUMBER'].first.to_i)
 		end
 
-		case type
-		when 'album'
-			mapping = {}
-			@selected_files.each do |file|
-				tags = @files[file]
-				mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
-					tags['ARTIST'].first, tags['DATE'].first, tags['ALBUM'].first,
-					format_number.call(tags),
-					tags['TITLE'].first)
+		if uniq_tag?('DATE')
+			album_date = $album.summary('DATE')['DATE'].first[1].first
+		else
+			if options[:album_date].to_s =~ /^\d\d\d\d$/
+				album_date = options[:album_date]
+			else
+			   raise CommandError, 'You need to specify a valid date.'
 			end
+		end
 
-			dirname = sprintf('%s - %s - %s',
-				$album.summary('ALBUMARTIST')['ALBUMARTIST'].first[1].first,
-				$album.summary('DATE')['DATE'].first[1].first,
-				$album.summary('ALBUM')['ALBUM'].first[1].first)
-		when 'compilation'
+		is_compilation = !uniq_tag?('ARTIST')
+
+		if is_compilation
 			mapping = {}
 			@selected_files.each do |file|
 				tags = @files[file]
@@ -305,39 +317,64 @@ class Album
 
 			dirname = sprintf('%s - %s',
 				$album.summary('ALBUM')['ALBUM'].first[1].first,
-				$album.summary('DATE')['DATE'].first[1].first)
+				album_date)
+		else
+			mapping = {}
+			@selected_files.each do |file|
+				tags = @files[file]
+				if uniq_tag?('DATE')
+					mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
+						tags['ARTIST'].first, tags['DATE'].first, tags['ALBUM'].first,
+						format_number.call(tags),
+						tags['TITLE'].first)
+				else
+					mapping[file] = sprintf('%s - %s - %s - %s - %s (%s).ogg',
+						tags['ARTIST'].first, album_date, tags['ALBUM'].first,
+						format_number.call(tags),
+						tags['TITLE'].first, tags['DATE'].first)
+				end
+			end
+
+			dirname = sprintf('%s - %s - %s',
+				$album.summary('ARTIST')['ARTIST'].first[1].first,
+				album_date,
+				$album.summary('ALBUM')['ALBUM'].first[1].first)
 		end
+
+		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '') }
+		dirname = dirname.gsub(/[\\\/:*?"<>|]/, '')
 
 		if mapping.values.uniq.size != @selected_files.size
-			raise RuntimeError, 'Generated filenames are not uniq.'
+			raise CommandError, 'Generated filenames are not uniq.'
 		end
 
-		# TODO Should UTF-8 chars be removed in order to have Windows-safe ?
+		# TODO Should UTF-8 chars be converted to latin1 in order to have Windows-safe filenames?
 
+		# Renaming the album directory
 		begin
-			# Remove unauthorized chars
-			path = @path.dirname + dirname.gsub(/[\\\/:*?"<>|]/, '')
-			if @path != path
-				FileUtils.mv(@path, path)
-				@path = path
+			newpath = @path.dirname + dirname
+			if @path != newpath
+				FileUtils.mv(@path, newpath)
+				@path = newpath
 			end
 		rescue Exception => ex
-			raise RuntimeError, "Cannot rename #{@path} to #{path}."
+			raise CommandError, "Cannot rename \"#{@path}\# to \"#{newpath}\"."
 		end
 
+		# Renaming the ogg files
 		Set.new(@selected_files).each do |file|
 			begin
-				oldpath = File.join(@path, file)
-				newpath = File.join(@path, mapping[file].gsub(/[\\\/:*?"<>|]/, ''))
+				oldpath = @path + file
+				newpath = @path + mapping[file]
 
 				if oldpath != newpath
 					FileUtils.mv(oldpath, newpath)
-					@files[mapping[file]] = @files.delete(file)
+					@files[Pathname.new mapping[file]] = @files.delete(file)
 				end
 
-				@selected_files.delete(file).add(mapping[file])
+				@selected_files.delete(file).add(Pathname.new mapping[file])
 			rescue Exception => ex
-				raise RuntimeError, "Cannot rename #{File.join(@path, file)} to #{File.join(@path, mapping[file])}."
+				raise CommandError, "Cannot rename \"#{file}\" to \"#{mapping[file]}\"."
 			end
 		end
 	end
