@@ -14,7 +14,7 @@ class TagContainer
 		begin
 			dump = `#{Shellwords.shelljoin ['vorbiscomment', '-l', file]}`
 		rescue
-			raise RuntimeError, 'Failed to invoke vorbiscomment.'
+			raise RuntimeError, 'Failed to invoke vorbiscomment. Make sure it is in your path.'
 		end
 
 		raise ArgumentError, "#{file} does not seems to be a valid ogg file." if $?.exitstatus != 0
@@ -44,11 +44,6 @@ class TagContainer
 		@hash[tag.upcase] = Set.new unless self.has_tag?(tag)
 	end
 
-	# Remove the specified tag from the container.
-	#def rm_tag tag
-	#	@hash.delete tag.upcase
-	#end
-
 	# Add some values to the specified tag.
 	# Any previous values will be removed.
 	def set_values(tag, *values)
@@ -62,7 +57,7 @@ class TagContainer
 		@hash[tag.upcase].merge(values)
 	end
 
-	# Remove some tags. If no value is specified, the specified tag is cleared.
+	# Remove some tags. If no value is specified, the specified tag is removed.
 	def rm_values(tag, *values)
 		if values.empty? then @hash.delete(tag.upcase)
 		else
@@ -78,7 +73,7 @@ class TagContainer
 
 	# Iterate through the available tags.
 	def each
-		@hash.each { |k, v| yield(k, v) }
+		@hash.each { |tag, set| yield(tag, set) }
 	end
 
 	def to_s

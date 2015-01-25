@@ -59,7 +59,7 @@ def autocomplete(input)
 				$stderr.puts
 				$stderr.puts "Autocompletion is not supported for pictures"
 				Readline.refresh_line
-			else props = $album.summary(tag)[tag].values.flatten.uniq
+			else props = $album.tag_summary(tag).values.flatten.uniq
 			end
 		end
 	elsif args[0] == 'auto'
@@ -170,18 +170,7 @@ def execute_command(command_line)
 				case args[0]
 				when 'tracknumber' then $album.auto_tracknumber()
 				when 'rename'
-					dummy, *cli_args = args
-
-					options = {}
-					begin
-						OptionParser.new do |opts|
-							opts.on('--album-date DATE', 'Album date') { |date| options[:album_date] = date }
-						end.parse(cli_args)
-					rescue OptionParser::ParseError => ex
-						raise OggAlbumTagger::CommandError, ex.message
-					end
-
-					$album.auto_rename(options)
+					$album.auto_rename
 					ls_command()
 				end
 			end

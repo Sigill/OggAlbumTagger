@@ -68,6 +68,17 @@ class Album
 		data
 	end
 
+	# Returns a hash where keys are the positions of the files in the album
+	# and keys are sorted lists of values associated to the tag.
+	def tag_summary(tag)
+		summary(tag)[tag]
+	end
+
+	# Pick from the selected files one single value associated to the specified tag.
+	def tag_uniq_value(tag)
+		tag_summary(tag).first[1].first
+	end
+
 	# Write the tags to the files.
 	def write
 		@files.each do |file, tags|
@@ -224,6 +235,7 @@ class Album
 	# * DATE must be a valid date.
 	# * ALBUM must be uniq.
 	# * ALBUMARTIST should have the value "Various artists" if this album is a compilation.
+	# * ALBUMDATE must be uniq if DATE is not.
 	# * DISCNUMBER must be used at most one time per file.
 	# * TRACKNUMBER and DISCNUMBER must have numerical values.
 	def check
@@ -231,18 +243,28 @@ class Album
 			raise CommandError, "The \"#{tag}\" tag must be used once per track." unless tag_used_once?(tag)
 		end
 
-		raise CommandError, 'The DATE tag must be the year the track was composed.' unless validate_tag('DATE') { |v| v.first.to_s =~ /^\d\d\d\d$/ }
+		unless validate_tag('DATE') { |v| (v.size == 1) && (v.first.to_s =~ /^\d\d\d\d$/) }
+			raise CommandError, 'The DATE tag must be the year the track was composed.'
+		end
 
 		raise CommandError, "The ALBUM tag must have a single and uniq value among all songs." unless uniq_tag?('ALBUM')
 
-		is_compilation = !uniq_tag?('ARTIST')
-
-		if is_compilation
-			unless uniq_tag?('ALBUM') and $album.summary('ALBUMARTIST')['ALBUMARTIST'].first[1].first != 'Various artists'
-				raise CommandError, 'This album seems to be a compilation. The ALBUMARTIST tag should have the value \"Various artists\".'
-			end
-		else
+		if uniq_tag?('ARTIST')
 			raise CommandError, 'The ALBUMARTIST is only required for compilations.' if tag_used?('ALBUMARTIST')
+		else
+			unless uniq_tag?('ALBUMARTIST') and tag_uniq_value('ALBUMARTIST') == 'Various artists'
+				raise CommandError, 'This album seems to be a compilation. The ALBUMARTIST tag should have the value "Various artists".'
+			end
+		end
+
+		unless uniq_tag?('DATE')
+			if uniq_tag?('ALBUMDATE')
+				unless validate_tag('ALBUMDATE') { |v| v.first.to_s =~ /^\d\d\d\d$/ }
+					raise CommandError, 'The ALBUMDATE tag must be the year the track was composed.'
+				end
+			else
+				raise CommandError, "The ALBUMDATE is required if the DATE tag is not uniq."
+			end
 		end
 
 		has_discnumber = tag_used_once?('DISCNUMBER')
@@ -260,29 +282,27 @@ class Album
 	# Auto rename the directory and the ogg files of the album.
 	#
 	# For an album, the format is:
-	# Ogg file:  ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE
 	# Directory: ARTIST - DATE - ALBUM
+	# Ogg file:  ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE
 	#
 	# For a single-artist compilation (an album where tracks have different dates), the format is:
-	# Ogg file:  ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE (DATE)
 	# Directory: ARTIST - ALBUMDATE - ALBUM
+	# Ogg file:  ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE
 	#
 	# For a compilation, the format is:
-	# Ogg file:  ALBUM - [DISCNUMBER.]TRACKNUMBER - ARTIST - DATE - TITLE
 	# Directory: ALBUM - ALBUMDATE
-	#
-	# ALBUMDATE is not a tag, it is an information provided at runtime.
+	# Ogg file:  ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE
 	#
 	# Disc and track numbers are padded with zeros.
-	def auto_rename(options)
+	def auto_rename
 		check()
 
-		tn_maxlength = $album.summary('TRACKNUMBER')['TRACKNUMBER'].values.map { |v| v.first.to_s }.max_by { |v| v.length }.length
+		tn_maxlength = tag_summary('TRACKNUMBER').values.map { |v| v.first.to_s.length }.max
 		tn_format = '%0' + tn_maxlength.to_s + 'd'
 
 		has_discnumber = tag_used_once?('DISCNUMBER')
 		if has_discnumber
-			dn_maxlength = $album.summary('DISCNUMBER')['DISCNUMBER'].values.map { |v| v.first.to_s }.max_by { |v| v.length }.length
+			dn_maxlength = tag_summary('DISCNUMBER').values.map { |v| v.first.to_s.length }.max
 			dn_format = '%0' + dn_maxlength.to_s + 'd'
 		end
 
@@ -294,51 +314,37 @@ class Album
 			s += sprintf(tn_format, tags['TRACKNUMBER'].first.to_i)
 		end
 
-		if uniq_tag?('DATE')
-			album_date = $album.summary('DATE')['DATE'].first[1].first
-		else
-			if options[:album_date].to_s =~ /^\d\d\d\d$/
-				album_date = options[:album_date]
-			else
-			   raise CommandError, 'You need to specify a valid date.'
-			end
-		end
+		album_date = uniq_tag?('DATE') ? tag_uniq_value('DATE') : tag_uniq_value('ALBUMDATE')
 
-		is_compilation = !uniq_tag?('ARTIST')
+		mapping = {}
 
-		if is_compilation
-			mapping = {}
+		if uniq_tag?('ARTIST')
 			@selected_files.each do |file|
 				tags = @files[file]
-				mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
-					tags['ALBUM'].first, format_number.call(tags),
-					tags['ARTIST'].first, tags['DATE'].first, tags['TITLE'].first)
-			end
 
-			dirname = sprintf('%s - %s',
-				$album.summary('ALBUM')['ALBUM'].first[1].first,
-				album_date)
-		else
-			mapping = {}
-			@selected_files.each do |file|
-				tags = @files[file]
-				if uniq_tag?('DATE')
-					mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
-						tags['ARTIST'].first, tags['DATE'].first, tags['ALBUM'].first,
-						format_number.call(tags),
-						tags['TITLE'].first)
+				common_tags = [tags['ARTIST'].first, album_date, tags['ALBUM'].first,
+				               format_number.call(tags), tags['TITLE'].first]
+
+				mapping[file] = if uniq_tag?('DATE')
+					sprintf('%s - %s - %s - %s - %s.ogg', *common_tags)
 				else
-					mapping[file] = sprintf('%s - %s - %s - %s - %s (%s).ogg',
-						tags['ARTIST'].first, album_date, tags['ALBUM'].first,
-						format_number.call(tags),
-						tags['TITLE'].first, tags['DATE'].first)
+					sprintf('%s - %s - %s - %s - %s - %s.ogg', *common_tags, tags['DATE'].first)
 				end
 			end
 
 			dirname = sprintf('%s - %s - %s',
-				$album.summary('ARTIST')['ARTIST'].first[1].first,
+				tag_uniq_value('ARTIST'),
 				album_date,
-				$album.summary('ALBUM')['ALBUM'].first[1].first)
+				tag_uniq_value('ALBUM'))
+		else
+			@selected_files.each do |file|
+				tags = @files[file]
+				mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
+					tags['ALBUM'].first, album_date, format_number.call(tags),
+					tags['ARTIST'].first, tags['TITLE'].first, tags['DATE'].first)
+			end
+
+			dirname = sprintf('%s - %s', tag_uniq_value('ALBUM'), album_date)
 		end
 
 		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '') }

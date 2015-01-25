@@ -14,8 +14,10 @@ class Picture
 			image = File.expand_path(image)
 			img = Exiftool.new(image)
 			content = IO.binread(image)
+		rescue Exiftool::ExiftoolNotInstalled
+			raise CommandError, "exiftool (not the gem, the executable) is not in your path, please install it."
 		rescue
-			raise ArgumentError, "\"#{image}\" cannot be read."
+			raise CommandError, "\"#{image}\" cannot be read."
 		end
 
 		meta = img.results[0].to_hash
