@@ -1,5 +1,6 @@
 require 'base64'
 require 'exiftool'
+require 'ogg_album_tagger/exceptions'
 
 module OggAlbumTagger
 
@@ -15,15 +16,15 @@ class Picture
 			img = Exiftool.new(image)
 			content = IO.binread(image)
 		rescue Exiftool::ExiftoolNotInstalled
-			raise CommandError, "exiftool (not the gem, the executable) is not in your path, please install it."
+			raise OggAlbumTagger::SystemError, "exiftool (the executable, not the gem) is not in your path, please install it."
 		rescue
-			raise CommandError, "\"#{image}\" cannot be read."
+			raise OggAlbumTagger::ArgumentError, "\"#{image}\" cannot be read."
 		end
 
 		meta = img.results[0].to_hash
 		mime = meta[:mime_type]
 
-		raise ArgumentError, 'Unsupported image type. Use JPEG or PNG.' unless ['image/png', 'image/jpeg'].include?(mime)
+		raise OggAlbumTagger::ArgumentError, 'Unsupported image type. Use JPEG or PNG.' unless ['image/png', 'image/jpeg'].include?(mime)
 
 		pack = [
 			3, # Front cover

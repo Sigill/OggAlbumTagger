@@ -1,5 +1,6 @@
 require 'shellwords'
 require 'set'
+require 'ogg_album_tagger/exceptions'
 
 module OggAlbumTagger
 
@@ -14,10 +15,10 @@ class TagContainer
 		begin
 			dump = `#{Shellwords.shelljoin ['vorbiscomment', '-l', file]}`
 		rescue
-			raise RuntimeError, 'Failed to invoke vorbiscomment. Make sure it is in your path.'
+			raise OggAlbumTagger::SystemError, 'Failed to invoke vorbiscomment. Make sure it is in your path.'
 		end
 
-		raise ArgumentError, "#{file} does not seems to be a valid ogg file." if $?.exitstatus != 0
+		raise OggAlbumTagger::ArgumentError, "#{file} does not seems to be a valid ogg file." if $?.exitstatus != 0
 
 		dump.each_line do |l|
 			tag, value = l.split('=', 2)
@@ -32,6 +33,14 @@ class TagContainer
 	# Do not use the returned Set to add new tags, use the methods provided by the class.
 	def [](tag)
 		has_tag?(tag) ? @hash[tag.upcase] : Set.new.freeze
+	end
+
+	def first(tag)
+		if has_tag?(tag)
+			return @hash[tag.upcase].first
+		else
+			raise IndexError, "Tag \"#{tag}\" does not exists."
+		end
 	end
 
 	# Check if the specified tag is present in the container.
