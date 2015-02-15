@@ -401,11 +401,12 @@ class Library
 			begin
 				oldpath = fullpath(file)
 				newpath = (@path.nil? ? file.dirname : @path) + mapping[file]
+				newpath_rel = file.dirname + mapping[file]
 
 				if oldpath != newpath
 					FileUtils.mv(oldpath, newpath)
-					@files[newpath] = @files.delete(file)
-					@selected_files.delete(file).add(newpath)
+					@files[newpath_rel] = @files.delete(file)
+					@selected_files.delete(file).add(newpath_rel)
 				end
 			rescue Exception => ex
 				raise OggAlbumTagger::SystemError, "Cannot rename \"#{file}\" to \"#{mapping[file]}\"."
