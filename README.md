@@ -94,7 +94,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
 ## How to install
 
-First, you need to install the exiftool and vorbiscomment tools. For example, on Debian/Ubuntu systems, run `apt-get install vorbis-tools libimage-exiftool-perl` from your terminal.
+First, you need to install the `exiftool` tool and `libtag` (sometimes called `taglib` on some systems) library (you need the development package, since the ruby gem will be built upon it). For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev` from your terminal.
 
 ### Install from sources
 

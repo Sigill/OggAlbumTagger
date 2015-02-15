@@ -1,6 +1,7 @@
 require 'shellwords'
 require 'set'
 require 'ogg_album_tagger/exceptions'
+require 'taglib'
 
 module OggAlbumTagger
 
@@ -13,17 +14,43 @@ class TagContainer
 		@hash = Hash.new 
 
 		begin
-			dump = `#{Shellwords.shelljoin ['vorbiscomment', '-l', file]}`
-		rescue
-			raise OggAlbumTagger::SystemError, 'Failed to invoke vorbiscomment. Make sure it is in your path.'
+			TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
+				ogg.tag.field_list_map.each do |tag, values|
+					prepare_tag(tag.upcase)
+
+					values.each do |value|
+						@hash[tag.upcase].add(value.strip)
+					end
+				end
+			end
+		rescue Exception => ex
+			#STDERR.puts ex
+			raise OggAlbumTagger::ArgumentError, "#{file} does not seems to be a valid ogg file."
 		end
+	end
 
-		raise OggAlbumTagger::ArgumentError, "#{file} does not seems to be a valid ogg file." if $?.exitstatus != 0
+	# Write the tags in the specified file.
+	def write(file)
+		begin
+			TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
+				tags = ogg.tag
 
-		dump.each_line do |l|
-			tag, value = l.split('=', 2)
-			prepare_tag(tag)
-			@hash[tag.upcase].add(value.strip)
+				# Remove old tags
+				tags.field_list_map.keys.each { |t| tags.remove_field(t) }
+
+				# Set new tags
+				TagContainer.sorted_tags(@hash.keys) do |tag|
+					@hash[tag].to_a.sort.each do |v|
+						tags.add_field(tag, v, false)
+					end
+				end
+
+				# Save everything
+				ogg.save
+			end
+		rescue Exception => ex
+			#STDERR.puts ex
+			raise OggAlbumTagger::ArgumentError, "#{file} cannot be written."
 		end
 	end
 
@@ -89,17 +116,6 @@ class TagContainer
 		TagContainer.sorted_tags(@hash.keys).map do |tag|
 			TagContainer.pp_tag(@hash[tag])
 		end.join "\n"
-	end
-
-	# Convert the container to a string that vorbiscomment can read.
-	def to_vorbiscomment
-		data = []
-
-		TagContainer.sorted_tags(@hash.keys) do |tag|
-			@hash[tag].to_a.sort.each { |v| data << "#{tag}=#{v}" }
-		end
-
-		data.join "\n"
 	end
 
 	# Sort the tag keys alphabetically, but put METADATA_BLOCK_PICTURE at the end.

@@ -93,8 +93,7 @@ class Library
 	# Write the tags to the files.
 	def write
 		@selected_files.each do |file|
-			command = "#{Shellwords.shelljoin ['vorbiscomment', '-w', fullpath(file)]}"
-			o, s = Open3.capture2(command, :stdin_data => @files[file].to_vorbiscomment())
+			@files[file].write(fullpath(file))
 		end
 	end
 
