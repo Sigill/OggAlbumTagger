@@ -2,6 +2,19 @@
 
 OggAlbumTagger is an interactive command line tool that help you tag ogg files. As the name suggest, OggAlbumTagger is able to manage whole albums and compilations.
 
+## Why OggAlbumTagger
+
+I wanted a tool that would give me a full and easy access to all tags and would integrate some logic to quickly tag full albums.
+
+Current solutions were not satisfying enough to me:
+- No easy way to access non-standard tags.
+- No support for tags with multiple values.
+- No easy way to tag full albums.
+- Unwanted padding of numerical tags.
+- No consistency concerning the case on order of the tags (no, this is not some kind of OCD).
+
+Therefore, I wrote OggAlbumTagger. It is designed to fit my needs. But as you can see the "how to properly tag your music" section below, they are quite simple: I want my tags to be as concise as possible. But with a smart tagging strategy, it is possible to be quite efficient.
+
 ## Usage
 
     $ ogg-album-tagger [options] files|directories
@@ -15,7 +28,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
 ### Preliminary notes
 
-- OggAlbumTagger works like most terminals. Arguments need to be separated by one or more spaces. If your argument contains special characters (spaces, single or double quotes), you can either escape them with a backslash (`\`) or enclose you argument with single or double quotes. Inside a double-quoted argument, you can escape double quotes with a backslash. Single-quoted arguments do not support escaping.
+- OggAlbumTagger works like most terminals. Arguments need to be separated by one or more spaces. If your argument contains special characters (spaces, single or double quotes), you can either escape them with a backslash (`\`) or enclose your argument with single or double quotes. Inside a double-quoted argument, you can escape double quotes with a backslash. Single-quoted arguments do not support escaping.
 
 - OggAlbumTagger is capable of autocompletion and autosuggestion. Press the `tab` key to autocomplete your arguments, tag names, tag values and filenames. If you don't know what to do, double press `tab` to get suggestions.
 
@@ -64,7 +77,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
     Directory: N/A
 
-    Ogg files: ARTIST - TITLE (DATE)
+    Ogg files: ARTIST - TITLE (DATE).ogg
 
   - Albums
 
@@ -94,9 +107,11 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
 ## How to install
 
-First, you need to install the `exiftool` tool and `libtag` (sometimes called `taglib` on some systems) library (you need the development package, since the ruby gem will be built upon it). For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev` from your terminal.
+First, you need to install the `exiftool` tool and `libtag` (also called `taglib` on some systems) library (you need the development package, since the ruby gem will be built upon it). For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev` from your terminal.
 
 ### Install from sources
+
+Get the sources.
 
 Run `bundle install` to install dependencies.
 
@@ -105,6 +120,32 @@ Run `rake install` to install the gem from the sources.
 ### Run without installing
 
 From the root of the source folder, run `bundle exec ogg-album-tagger  ...`.
+
+## How to properly tag your music
+
+Always specify the ARTIST, TITLE and DATE (OggAlbumTagger requires a year) tags.
+
+For albums, best-of (same artist, different dates) and compilations (different artists), specify the ALBUM and TRACKNUMBER. If there is multiple discs, use the DISCNUMBER tag. Do not pad numerical tags (TRACKNUMBER, DISCNUMBER) with zeros (if you media player is unable to know that 2 comes before 10, use another media player). If the tracks in your best-of/compilation are composed at different DATEs, use the ALBUMDATE tag.
+
+On compilations (and only on compilations), set the ALBUMARTIST tag to "Various artists" (or whatever you want, but be consistent). This way, you can easily search for compilations in your audio library.
+
+The ALBUM, ARTIST and ALBUMARTIST tags are designed for systems with limited display capabilities. When used, they must contain one single value.
+
+You also want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono)? You want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob"? Enter each name using ARTISTSORT tags (even if their use is less obvious, similar goals can be achieved for the ALBUM and ALBUMARTIST tags using the ALBUMSORT and ALBUMARTISTSORT tags). If your media player may not support these *SORT tags, use another media player.
+
+Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, target the genres you are able to recognize.
+
+Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.html) and [this one](http://age.hobba.nl/audio/mirroredpages/ogg-tagging.html). But you can achieve pretty good tagging using the tags listed above.
+
+## TODO
+
+Not every functionality in this list has to be implemented. Actually, I don't need most of them. If you have some time to spare, I'll be happy to accept your contributions.
+
+* Support other audio formats: OggalbumTagger is built upon the [TagLib gem](http://robinst.github.io/taglib-ruby/), which support many audio formats. Theoretically, it is possible to support them in oggAlbumTagger (the name can be changed). In practice, I've no desire to play with those ugly ID3 tags and theirs versions and encodings. If you need this, it might be quicker for you to convert your music library to ogg (I've done it, no regret).
+* Make the code modular, so that each available command live in a single class that handle it's own autosuggestion, autocompletion, execution... Ok, it requires to rewrite half of the program, but it would be cool.
+* Fill tags from filenames or from some CDDB/FreeDB/... database. In the meantime, use [lltags](http://home.gna.org/lltag/).
+* Export cover pictures.
+* Whatever you feel useful...
 
 ## License
 
