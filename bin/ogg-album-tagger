@@ -32,8 +32,8 @@ def autocomplete(input)
 
 	props = []
 
-	if args.empty? then props = %w{ls select show set add rm auto write help exit quit}
-	elsif %w{ls select help exit quit}.include?(args[0]) then props = []
+	if args.empty? then props = %w{ls select show set add rm auto check write help exit quit}
+	elsif %w{ls select check help exit quit}.include?(args[0]) then props = []
 	elsif args[0] == 'show'
 		if args.size == 1
 			props = %w{tag}
@@ -172,6 +172,9 @@ def execute_command(command_line)
 					ls_command()
 				end
 			end
+		when 'check'
+			$library.check
+			puts "OK"
 		when 'write'
 			$library.write
 		when 'help'
@@ -198,7 +201,7 @@ option_parser = OptionParser.new do |opts|
 
 	opts.separator "Options:"
 
-	opts.on("-a", "--album", "Treat a single directory as an album.") do
+	opts.on("-a", "--album", "Album mode: treat a single directory as an album.") do
 		options[:album] = true
 	end
 

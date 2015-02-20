@@ -38,9 +38,9 @@ class TagContainer
 				# Remove old tags
 				tags.field_list_map.keys.each { |t| tags.remove_field(t) }
 
-				# Set new tags
-				TagContainer.sorted_tags(@hash.keys) do |tag|
-					@hash[tag].to_a.sort.each do |v|
+				# Set new tags (Taglib will write them sorted)
+				@hash.each do |tag, values|
+					values.sort.each do |v|
 						tags.add_field(tag, v, false)
 					end
 				end

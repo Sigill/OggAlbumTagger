@@ -4,27 +4,27 @@ OggAlbumTagger is an interactive command line tool that help you tag ogg files. 
 
 ## Why OggAlbumTagger
 
-I wanted a tool that would give me a full and easy access to all tags and would integrate some logic to quickly tag full albums.
+I wanted a tool that would give me a full and easy access to all tags and would integrate some logic to quickly tag full albums or compilations.
 
 Current solutions were not satisfying enough to me:
 - No easy way to access non-standard tags.
-- No support for tags with multiple values.
+- No/limited support for tags with multiple values.
 - No easy way to tag full albums.
 - Unwanted padding of numerical tags.
-- No consistency concerning the case on order of the tags (no, this is not some kind of OCD).
+- No consistency concerning the case and order of the tags (ok, this point might be a bit excessive).
 
-Therefore, I wrote OggAlbumTagger. It is designed to fit my needs. But as you can see the "how to properly tag your music" section below, they are quite simple: I want my tags to be as concise as possible. But with a smart tagging strategy, it is possible to be quite efficient.
+Therefore, I wrote OggAlbumTagger. It is designed to enforce some good tagging practices (you can read about them in the "How to properly tag your music" section below), but it will let you do whatever you want.
 
 ## Usage
 
     $ ogg-album-tagger [options] files|directories
     Options:
-        -a, --album    Treat a single directory as an album.
+        -a, --album    Album mode, treat a single directory as an album.
         -h, --help     Print this help.`
 
 When executed, OggAlbumTagger extracts the tags of the ogg files passed as arguments (ogg files will be searched recursively in directories). Once done, you have to use the commands listed below to access and modify the tags.
 
-When the `-a` option is passed, you must work on a single directory. OggAlbumTagger will require album (or compilation) specific tags. When renaming the files, the directory will also be renamed.
+When the `-a` option is passed, OggAlbumTagger will require album (or compilation) specific tags, will enforce a few more good tagging practices and will allow you to rename the album directory along with the tracks. You have to work on a single directory.
 
 ### Preliminary notes
 
@@ -34,7 +34,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
 - Tag names are case insensitive, but they will be written uppercase in files.
 
-- Each tag can have multiple values. They are displayed and written in files in alphabetical order.
+- Each tag can have multiple values (but in order to enforce good tagging practices, OggAlbumTagger will prevent you to do so for some tags).
 
 - OggAlbumTagger uses UTF-8 (but currently I don't know what happen if your terminal is not in UTF-8).
 
@@ -63,7 +63,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
 - `set <tag> value1 [value2...]`: tags each selected files with the specified tag and all specified values. If the tag does not exists, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
 
-  If the tag is `metadata_block_picture` (also aliased as `picture`), you have to provide the path to a jpeg or png file (autocomplete also works here) and optionally a description for the picture. Currently, `ogg_album_tagger` only supports the "front cover" type (see http://xiph.org/flac/format.html#metadata_block_picture).
+  If the tag is `metadata_block_picture` (also aliased as `picture`), you have to provide the path to a jpeg or png file (autocomplete also works here) and optionally a description of the picture. OggAlbumTagger currently only supports the "front cover" type (see http://xiph.org/flac/format.html#metadata_block_picture).
 
 - `add <tag> value1 [value2...]`: like `set`, but previous values are not discarded.
 
@@ -77,7 +77,7 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
     Directory: N/A
 
-    Ogg files: ARTIST - TITLE (DATE).ogg
+    Ogg files: ARTIST - DATE - TITLE.ogg
 
   - Albums
 
@@ -99,11 +99,15 @@ When the `-a` option is passed, you must work on a single directory. OggAlbumTag
 
   `DISCNUMBER` and `TRACKNUMBER` tags are automatically padded with zeros in order to be of equal length and allow alphabetical sort.
 
-  All ogg files will be moved at the root of the album.
+  Those characters are not authorized in file names: `\/:*?"<>|`. They will be removed.
+
+  In album mode, all ogg files will be moved to the root of the album.
+
+- `check`: verify that you follow good tagging practices.
 
 - `write`: writes the tags in the files.
 
-- `quit`: closes `ogg_album_tagger`.
+- `quit`: discards all modifications and closes OggAlbumTagger.
 
 ## How to install
 
@@ -123,17 +127,19 @@ From the root of the source folder, run `bundle exec ogg-album-tagger  ...`.
 
 ## How to properly tag your music
 
+These good practices apply to Vorbis comments (the type of tags used in ogg files). There is nothing official about them, they only describe an efficient way to tag your music.
+
 Always specify the ARTIST, TITLE and DATE (OggAlbumTagger requires a year) tags.
 
-For albums, best-of (same artist, different dates) and compilations (different artists), specify the ALBUM and TRACKNUMBER. If there is multiple discs, use the DISCNUMBER tag. Do not pad numerical tags (TRACKNUMBER, DISCNUMBER) with zeros (if you media player is unable to know that 2 comes before 10, use another media player). If the tracks in your best-of/compilation are composed at different DATEs, use the ALBUMDATE tag.
+For albums, best-of (same artist, different dates) and compilations (different artists), specify the ALBUM and TRACKNUMBER. If there is multiple discs, use the DISCNUMBER tag. Do not pad numerical tags (TRACKNUMBER, DISCNUMBER) with zeros (if you media player is unable to know that 2 comes before 10, use another media player). If the tracks of your best-of/compilation are composed at different DATEs, use the ALBUMDATE tag.
 
-On compilations (and only on compilations), set the ALBUMARTIST tag to "Various artists" (or whatever you want, but be consistent). This way, you can easily search for compilations in your audio library.
+On compilations (and only compilations), set the ALBUMARTIST tag to "Various artists". This way, you can easily search for compilations in your audio library.
 
-The ALBUM, ARTIST and ALBUMARTIST tags are designed for systems with limited display capabilities. When used, they must contain one single value.
+The ALBUM, ARTIST, ALBUMARTIST and TITLE tags are designed for systems with limited display capabilities. When used, they must contain one single value.
 
-You also want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono)? You want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob"? Enter each name using ARTISTSORT tags (even if their use is less obvious, similar goals can be achieved for the ALBUM and ALBUMARTIST tags using the ALBUMSORT and ALBUMARTISTSORT tags). If your media player may not support these *SORT tags, use another media player.
+You can specify alternate values using the ALBUMSORT, ARTISTSORT, ALBUMARTISTSORT and TITLESORT tags. The ARTISTSORT is especially usefull if you want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono), or if you want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob". If your media player does not support these *SORT tags, use another media player.
 
-Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, target the genres you are able to recognize.
+Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, or it might make it harder to search by genre. Use the genres you are able to recognize. You also can split "hybrid" genres like "Pop-Rock".
 
 Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.html) and [this one](http://age.hobba.nl/audio/mirroredpages/ogg-tagging.html). But you can achieve pretty good tagging using the tags listed above.
 

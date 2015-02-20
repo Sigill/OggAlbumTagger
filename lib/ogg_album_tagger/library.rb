@@ -299,7 +299,7 @@ class Library
 	#
 	# For singles, the format is:
 	# Directory: N/A
-	# Ogg file: ARTIST - TITLE (DATE)
+	# Ogg file: ARTIST - DATE - TITLE
 	#
 	# For an album, the format is:
 	# Directory: ARTIST - DATE - ALBUM
@@ -322,7 +322,7 @@ class Library
 		if @path.nil?
 			@selected_files.each do |file|
 				tags = @files[file]
-				mapping[file] = sprintf('%s - %s (%s).ogg', tags.first('ARTIST'), tags.first('TITLE'), tags.first('DATE'))
+				mapping[file] = sprintf('%s - %s - %s.ogg', tags.first('ARTIST'), tags.first('DATE'), tags.first('TITLE'))
 			end
 		else
 			tn_maxlength = tag_summary('TRACKNUMBER').values.map { |v| v.first.to_s.length }.max
