@@ -70,9 +70,9 @@ class Library
 		positions = Hash[@files.keys.sort.each_with_index.to_a]
 
 		@selected_files.each do |file|
-			@files[file].each do |k, v|
-				next unless selected_tag.nil? or k.eql?(selected_tag)
-				data[k][positions[file]] = v.to_a.sort
+			@files[file].each do |tag, values|
+				next unless selected_tag.nil? or tag.eql?(selected_tag)
+				data[tag][positions[file]] = values.sort
 			end
 		end
 

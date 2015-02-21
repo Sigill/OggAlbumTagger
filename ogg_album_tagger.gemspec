@@ -8,18 +8,23 @@ Gem::Specification.new do |spec|
   spec.version       = OggAlbumTagger::VERSION
   spec.authors       = ["Cyrille Faucheux"]
   spec.email         = ["cyrille.faucheux@gmail.com"]
-  spec.summary       = %q{Interactive edition of ogg tags in an album or a compilation.}
-  spec.homepage      = ""
+  spec.summary       = "Interactive edition of ogg tags with support for whole albums."
+  spec.homepage      = "https://github.com/Sigill/OggAlbumTagger"
   spec.license       = "MIT"
 
-  spec.files         = `git ls-files -z`.split("\x0")
-  spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
+  spec.files         = %w{bin/ogg-album-tagger
+                          lib/ogg_album_tagger/exceptions.rb
+                          lib/ogg_album_tagger/library.rb
+                          lib/ogg_album_tagger/picture.rb
+                          lib/ogg_album_tagger/tag_container.rb
+                          lib/ogg_album_tagger/version.rb}
+  spec.executables   = %w{ogg-album-tagger}
   spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
   spec.add_development_dependency "bundler", "~> 1.7"
   spec.add_development_dependency "rake", "~> 10.0"
 
-  spec.add_runtime_dependency "exiftool", [">= 0.6"]
-  spec.add_runtime_dependency "taglib-ruby", [">= 0.7"]
+  spec.add_runtime_dependency "exiftool", ["~> 0.6"]
+  spec.add_runtime_dependency "taglib-ruby", ["~> 0.7"]
 end

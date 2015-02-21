@@ -20,7 +20,8 @@ Therefore, I wrote OggAlbumTagger. It is designed to enforce some good tagging p
     $ ogg-album-tagger [options] files|directories
     Options:
         -a, --album    Album mode, treat a single directory as an album.
-        -h, --help     Print this help.`
+        -v, --version  Display version information and exit.
+        -h, --help     Print this help.
 
 When executed, OggAlbumTagger extracts the tags of the ogg files passed as arguments (ogg files will be searched recursively in directories). Once done, you have to use the commands listed below to access and modify the tags.
 
@@ -42,13 +43,13 @@ When the `-a` option is passed, OggAlbumTagger will require album (or compilatio
 
 - `ls`: lists the files you have access to. Files are sorted according to their filename and are indexed by their position in the list. The star at the beginning of a line indicates that the file is selected (see the `select` command for more details).
 
-```
-> ls
-*    1: Queen - 1981 - Greatest Hits I - 01 - Bohemian Rapsody (1975).ogg
-*    2: Queen - 1981 - Greatest Hits I - 02 - Another One Bites The Dust (1980).ogg
-*    3: Queen - 1981 - Greatest Hits I - 03 - Killer Queen (1974).ogg
-...
-```
+  ```
+  > ls
+  *    1: Queen - 01 - Bohemian Rapsody.ogg
+  *    2: Queen - 02 - Another One Bites The Dust.ogg
+  *    3: Queen - 03 - Killer Queen.ogg
+  ...
+  ```
 
 - `select arg1 [arg2...]`: allow to select a subset of files to work on. The following selectors are available:
     - `all`: selects all the files.
@@ -111,19 +112,29 @@ When the `-a` option is passed, OggAlbumTagger will require album (or compilatio
 
 ## How to install
 
-First, you need to install the `exiftool` tool and `libtag` (also called `taglib` on some systems) library (you need the development package, since the ruby gem will be built upon it). For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev` from your terminal.
+First, you need to install:
 
-### Install from sources
+- The `exiftool` tool.
+- The `libtag` (also called `taglib` on some systems) library and its development package.
+- The ruby development package (generally called `ruby-dev`).
 
-Get the sources.
+For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev ruby-dev` from your terminal.
 
-Run `bundle install` to install dependencies.
+Then, run `gem install ogg_album_tagger`. It will automatically build and install the required Ruby dependencies.
 
-Run `rake install` to install the gem from the sources.
+## How to hack/contribute
 
-### Run without installing
+First, install the required dependencies listed in the "How to install" section above.
 
-From the root of the source folder, run `bundle exec ogg-album-tagger  ...`.
+Then, install the `rake` and `bundle` gems: `gem install rake bundle`.
+
+Finally, run `bundle install` to install Ruby dependencies.
+
+You will then be able to:
+
+- Run from source: `bundle exec ogg-album-tagger  ...`.
+- Install from source: `rake install`.
+- Build the gem: `gem build ogg_album_tagger.gemspec`.
 
 ## How to properly tag your music
 
@@ -137,11 +148,11 @@ On compilations (and only compilations), set the ALBUMARTIST tag to "Various art
 
 The ALBUM, ARTIST, ALBUMARTIST and TITLE tags are designed for systems with limited display capabilities. When used, they must contain one single value.
 
-You can specify alternate values using the ALBUMSORT, ARTISTSORT, ALBUMARTISTSORT and TITLESORT tags. The ARTISTSORT is especially usefull if you want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono), or if you want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob". If your media player does not support these *SORT tags, use another media player.
+You can specify alternate values using the ALBUMSORT, ARTISTSORT, ALBUMARTISTSORT and TITLESORT tags. The ARTISTSORT is especially usefull if you want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono), if you want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob". If your media player does not support these *SORT tags, use another media player.
 
-Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, or it might make it harder to search by genre. Use the genres you are able to recognize. You also can split "hybrid" genres like "Pop-Rock".
+Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, or it might make it harder to search by genre. Use the genres you are able to recognize. You can also split "hybrid" genres like "Pop-Rock".
 
-Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.html) and [this one](http://age.hobba.nl/audio/mirroredpages/ogg-tagging.html). But you can achieve pretty good tagging using the tags listed above.
+Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.html) and [this one](http://www.legroom.net/2009/05/09/ogg-vorbis-and-flac-comment-field-recommendations). But you can achieve pretty good tagging using the tags listed above.
 
 ## TODO
 

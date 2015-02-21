@@ -2,6 +2,7 @@
 
 require 'rubygems'
 
+require 'ogg_album_tagger/version'
 require 'ogg_album_tagger/library'
 require 'ogg_album_tagger/picture'
 require 'ogg_album_tagger/tag_container'
@@ -205,10 +206,19 @@ option_parser = OptionParser.new do |opts|
 		options[:album] = true
 	end
 
-	opts.on("-h", "--help", "Print this help.") do
+	opts.on("-v", "--version", "Display version information and exit.") do
+		puts "OggAlbumTagger #{OggAlbumTagger::VERSION}"
+		exit
+	end
+
+	opts.on("-h", "--help", "Print this help and exit.") do
 		puts opts
 		exit
 	end
+
+	opts.separator ""
+	opts.separator "OggAlbumTagger is released under the terms of the MIT License."
+	opts.separator "For more informations, updates and bug reports, see https://github.com/Sigill/OggAlbumTagger."
 end.parse!
 
 if ARGV.size == 0
