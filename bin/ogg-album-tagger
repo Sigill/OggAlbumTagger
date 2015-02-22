@@ -67,7 +67,7 @@ def autocomplete(input)
 		end
 	end
 
-	(props || []).grep(/^#{Regexp.escape(input)}/).map do |v|
+	(props || []).grep(/^#{Regexp.escape(input)}/i).map do |v|
 		v.include?(' ') ? "\"#{v}\"" : v
 	end
 end
