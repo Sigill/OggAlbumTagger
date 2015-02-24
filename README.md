@@ -1,6 +1,6 @@
 # OggAlbumTagger
 
-OggAlbumTagger is an interactive command line tool that help you tag ogg files. As the name suggest, OggAlbumTagger is able to manage whole albums and compilations.
+OggAlbumTagger is an interactive command line tool that helps you tag ogg files. As the name suggest, OggAlbumTagger is able to manage whole albums and compilations.
 
 ## Why OggAlbumTagger
 
@@ -48,10 +48,10 @@ When the `-a` option is passed, OggAlbumTagger will require album (or compilatio
   *    1: Queen - 01 - Bohemian Rapsody.ogg
   *    2: Queen - 02 - Another One Bites The Dust.ogg
   *    3: Queen - 03 - Killer Queen.ogg
-  ...
+  …
   ```
 
-- `select arg1 [arg2...]`: allow to select a subset of files to work on. The following selectors are available:
+- `select arg1 [arg2…]`: allow to select a subset of files to work on. The following selectors are available:
     - `all`: selects all the files.
     - `i`: selects the file at position `i` in the list.
     - `i-j`: selects the files from position `i` to position `j` in the list.
@@ -62,13 +62,13 @@ When the `-a` option is passed, OggAlbumTagger will require album (or compilatio
 
 - `show`: without argument, displays the tags of the selected files. Tags are sorted alphabetically, except for the `metadata_block_picture` which is listed last. The command can be restricted to a single tag XXX by using the `show tag xxx` command.
 
-- `set <tag> value1 [value2...]`: tags each selected files with the specified tag and all specified values. If the tag does not exists, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
+- `set <tag> value1 [value2…]`: tags each selected files with the specified tag and all specified values. If the tag does not exist, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
 
   If the tag is `metadata_block_picture` (also aliased as `picture`), you have to provide the path to a jpeg or png file (autocomplete also works here) and optionally a description of the picture. OggAlbumTagger currently only supports the "front cover" type (see http://xiph.org/flac/format.html#metadata_block_picture).
 
-- `add <tag> value1 [value2...]`: like `set`, but previous values are not discarded.
+- `add <tag> value1 [value2…]`: like `set`, but previous values are not discarded.
 
-- `rm <tag> [value1...]`: removes the specified values of the specified tag for all selected files. If no value is specified, the tag is deleted.
+- `rm <tag> [value1…]`: removes the specified values of the specified tag for all selected files. If no value is specified, the tag is deleted.
 
 - `auto tracknumber`: automatically sets the `TRACKNUMBER` tag based on the selection. Numbering starts at 1, there is no padding with zeros.
 
@@ -132,7 +132,7 @@ Finally, run `bundle install` to install Ruby dependencies.
 
 You will then be able to:
 
-- Run from source: `bundle exec ogg-album-tagger  ...`.
+- Run from source: `bundle exec ogg-album-tagger  …`.
 - Install from source: `rake install`.
 - Build the gem: `gem build ogg_album_tagger.gemspec`.
 
@@ -142,15 +142,15 @@ These good practices apply to Vorbis comments (the type of tags used in ogg file
 
 Always specify the ARTIST, TITLE and DATE (OggAlbumTagger requires a year) tags.
 
-For albums, best-of (same artist, different dates) and compilations (different artists), specify the ALBUM and TRACKNUMBER. If there is multiple discs, use the DISCNUMBER tag. Do not pad numerical tags (TRACKNUMBER, DISCNUMBER) with zeros (if you media player is unable to know that 2 comes before 10, use another media player). If the tracks of your best-of/compilation are composed at different DATEs, use the ALBUMDATE tag.
+For albums, best-of (same artist, different dates) and compilations (different artists), specify the ALBUM and TRACKNUMBER. If there are multiple discs, use the DISCNUMBER tag. Do not pad numerical tags (TRACKNUMBER, DISCNUMBER) with zeros (if you media player is unable to know that 2 comes before 10, use another media player). If the tracks of your best-of/compilation are composed at different DATEs, use the ALBUMDATE tag.
 
 On compilations (and only compilations), set the ALBUMARTIST tag to "Various artists". This way, you can easily search for compilations in your audio library.
 
 The ALBUM, ARTIST, ALBUMARTIST and TITLE tags are designed for systems with limited display capabilities. When used, they must contain one single value.
 
-You can specify alternate values using the ALBUMSORT, ARTISTSORT, ALBUMARTISTSORT and TITLESORT tags. The ARTISTSORT is especially usefull if you want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono), if you want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob". If your media player does not support these *SORT tags, use another media player.
+You can specify alternate values using the ALBUMSORT, ARTISTSORT, ALBUMARTISTSORT and TITLESORT tags. The ARTISTSORT is especially useful if you want to specify the name of all members of a group (so that searching for John Lennon will give you its performances from The Beatles years and from its experimental period with Yoko Ono), if you want The Beatles to be listed at "B" or Bob Dylan to also be listed as "Dylan, Bob". If your media player does not support these *SORT tags, use another media player.
 
-Its nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, or it might make it harder to search by genre. Use the genres you are able to recognize. You can also split "hybrid" genres like "Pop-Rock".
+It's nice to have a GENRE (or several). Don't try to be too precise or too exhaustive, or it might make it harder to search by genre. Use the genres you are able to recognize. You can also split "hybrid" genres like "Pop-Rock".
 
 Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.html) and [this one](http://www.legroom.net/2009/05/09/ogg-vorbis-and-flac-comment-field-recommendations). But you can achieve pretty good tagging using the tags listed above.
 
@@ -159,10 +159,10 @@ Other standard tags: see [this page](http://www.xiph.org/vorbis/doc/v-comment.ht
 Not every functionality in this list has to be implemented. Actually, I don't need most of them. If you have some time to spare, I'll be happy to accept your contributions.
 
 * Support other audio formats: OggalbumTagger is built upon the [TagLib gem](http://robinst.github.io/taglib-ruby/), which support many audio formats. Theoretically, it is possible to support them in oggAlbumTagger (the name can be changed). In practice, I've no desire to play with those ugly ID3 tags and theirs versions and encodings. If you need this, it might be quicker for you to convert your music library to ogg (I've done it, no regret).
-* Make the code modular, so that each available command live in a single class that handle it's own autosuggestion, autocompletion, execution... Ok, it requires to rewrite half of the program, but it would be cool.
-* Fill tags from filenames or from some CDDB/FreeDB/... database. In the meantime, use [lltags](http://home.gna.org/lltag/).
+* Make the code modular, so that each available command live in a single class that handle its own autosuggestion, autocompletion, execution… Ok, it requires to rewrite half of the program, but it would be cool.
+* Fill tags from filenames or from some CDDB/FreeDB/… database. In the meantime, use [lltags](http://home.gna.org/lltag/).
 * Export cover pictures.
-* Whatever you feel useful...
+* Whatever you feel useful…
 
 ## License
 
