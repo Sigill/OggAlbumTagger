@@ -75,8 +75,14 @@ class TagContainer
 		@hash.has_key?(tag.upcase)
 	end
 
-	# If the specified tag is absent from the container, associate an it to an empty Set.
+	# Check if the tag is valid, otherwise raise an ArgulentError.
+	def valid_tag? tag
+		raise ArgumentError, "Invalid tag." unless tag =~ /^[\x20-\x3C\x3E-\x7D]+$/
+	end
+
+	# If the specified tag is absent from the container, associate an empty Set to it.
 	def prepare_tag tag
+		valid_tag? tag
 		@hash[tag.upcase] = Set.new unless self.has_tag?(tag)
 	end
 
@@ -95,6 +101,8 @@ class TagContainer
 
 	# Remove some tags. If no value is specified, the specified tag is removed.
 	def rm_values(tag, *values)
+		valid_tag? tag
+
 		if values.empty? then @hash.delete(tag.upcase)
 		else
 			@hash[tag.upcase].subtract(values)
@@ -137,6 +145,7 @@ class TagContainer
 	end
 
 	private :prepare_tag
+	private :valid_tag?
 end
 
 end
