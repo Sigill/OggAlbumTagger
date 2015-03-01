@@ -1,10 +1,10 @@
 # OggAlbumTagger
 
-[OggAlbumTagger](https://github.com/Sigill/OggAlbumTagger) est un script Ruby qui permet de tagguer de la musique au format Ogg Vorbis. Il fonctionne de façon interactive, propose de l'auto-complétion et de l'auto-suggestion, supporte les tags multi-valués ainsi que les pochettes d'album. Il est capable de gérer des albums complets, de renommer les fichiers à partir des tags, et permet de vérifier certaines bonnes pratiques concernant le contenu des tags.
+[OggAlbumTagger](https://github.com/Sigill/OggAlbumTagger) est un script Ruby qui permet de tagger de la musique au format Ogg Vorbis. Il fonctionne de façon interactive, propose de l'auto-complétion et de l'auto-suggestion, supporte les tags multi-valués ainsi que les pochettes d'album. Il est capable de gérer des albums complets, de renommer les fichiers à partir des tags, et permet de vérifier certaines bonnes pratiques concernant le contenu des tags.
 
 ## Pourquoi OggAlbumTagger ?
 
-Je voulais un outil offrant un contrôle total des tags mais qui intègre certains automatismes permettant de tagguer facilement des albums complets.
+Je voulais un outil offrant un contrôle total des tags mais qui intègre certains automatismes permettant de tagger facilement des albums complets.
 
 Malheureusement, j'ai n'ai pas trouvé d'outil d'édition de tags qui me satisfasse. En vrac :
 
@@ -13,7 +13,7 @@ Malheureusement, j'ai n'ai pas trouvé d'outil d'édition de tags qui me satisfa
 * Pas de gestion des pochettes.
 * Alignement inutile des tags numériques avec des zéros.
 * Ne permet pas le renommage des fichiers à partir des tags.
-* Difficile de tagguer un album complet.
+* Difficile de tagger un album complet.
 * …
 
 ## Comment ça fonctionne ?
@@ -68,11 +68,11 @@ __`add <tag> value1 [value2…]`__ : comme `set`, mais ne supprime pas les valeu
 
 __`rm <tag> [value1…]`__ : supprime les valeurs spécifiées. Si aucune valeur n'est spécifiée, toutes les valeurs associées à ce tag sont supprimées.
 
-__`check`__ : vérifie que vous avez correctement taggué vos fichiers.
+__`check`__ : vérifie que vous avez correctement taggé vos fichiers.
 
 __`auto tracknumber`__ : renseigne automatiquement le tag `tracknumber`.
 
-__`auto rename`__ : renomme les fichiers (ainsi que le dossier de l'album lorsque le mode album est activé) en se basant sur le contenu des tags. Pour cela, il est nécessaire que les fichiers soient correctement taggués (la commande `check` sera automatiquement exécutée, et le renommage ne se fera que si tous les fichiers sont correctement taggués). Selon si vous travaillez sur un album (artiste unique, date unique), un best-of (artiste unique, dates différentes), une compilation (artistes multiples) ou simplement un ensemble de fichiers ogg, les fichiers ne sont pas renommés de la même façon.
+__`auto rename`__ : renomme les fichiers (ainsi que le dossier de l'album lorsque le mode album est activé) en se basant sur le contenu des tags. Pour cela, il est nécessaire que les fichiers soient correctement taggés (la commande `check` sera automatiquement exécutée, et le renommage ne se fera que si tous les fichiers sont correctement taggés). Selon si vous travaillez sur un album (artiste unique, date unique), un best-of (artiste unique, dates différentes), une compilation (artistes multiples) ou simplement un ensemble de fichiers ogg, les fichiers ne sont pas renommés de la même façon.
 
 * Simple fichier  
   Dossier : N/A  
@@ -97,7 +97,7 @@ __`write`__ : sauvegarde les modifications.
 
 __`quit`__ ou __`exit`__ : quitte OggAlbumTagger. Attention, toute modification non sauvegardée sera perdue.
 
-## Comment tagguer efficacement votre musique ?
+## Comment tagger efficacement votre musique ?
 
 Ces bonnes pratiques s'appliquent aux tags de type "Vorbis Comment". Elles ont été compilées par moi-même, et n'ont rien d'officiel. L'un des objectifs d'OggAlbumTagger est de vous obliger à les suivre.
 
