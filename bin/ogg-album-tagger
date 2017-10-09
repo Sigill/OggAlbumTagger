@@ -219,10 +219,12 @@ option_parser = OptionParser.new do |opts|
 	opts.separator ""
 	opts.separator "OggAlbumTagger is released under the terms of the MIT License."
 	opts.separator "For more informations, updates and bug reports, see https://github.com/Sigill/OggAlbumTagger."
-end.parse!
+end
+
+option_parser.parse!
 
 if ARGV.size == 0
-	puts options_parser
+	puts option_parser
 	exit
 else
 	if options[:album]
