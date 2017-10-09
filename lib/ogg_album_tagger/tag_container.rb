@@ -11,7 +11,7 @@ module OggAlbumTagger
 class TagContainer
 	# Initialize a TagContainer from an ogg file.
 	def initialize(file)
-		@hash = Hash.new 
+		@hash = Hash.new
 
 		begin
 			TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
@@ -75,35 +75,43 @@ class TagContainer
 		@hash.has_key?(tag.upcase)
 	end
 
-	# Check if the tag is valid, otherwise raise an ArgulentError.
-	def valid_tag? tag
+	# Check if the tag is valid, otherwise raise an ArgumentError.
+	# Valid tags are composed of any character from " " to "}", excluding "=" and "~".
+	def self.valid_tag? tag
 		raise ArgumentError, "Invalid tag." unless tag =~ /^[\x20-\x3C\x3E-\x7D]+$/
 	end
 
 	# If the specified tag is absent from the container, associate an empty Set to it.
 	def prepare_tag tag
-		valid_tag? tag
+		TagContainer::valid_tag? tag
 		@hash[tag.upcase] = Set.new unless self.has_tag?(tag)
 	end
 
 	# Add some values to the specified tag.
 	# Any previous values will be removed.
 	def set_values(tag, *values)
-		prepare_tag tag
-		@hash[tag.upcase].replace(values)
+		if values.empty?
+			rm_values(tag)
+		else
+			prepare_tag tag
+			@hash[tag.upcase].replace(values)
+		end
 	end
 
 	# Add some values to the specified tag.
 	def add_values(tag, *values)
+		return if values.empty?
+
 		prepare_tag tag
 		@hash[tag.upcase].merge(values)
 	end
 
 	# Remove some tags. If no value is specified, the specified tag is removed.
 	def rm_values(tag, *values)
-		valid_tag? tag
+		TagContainer::valid_tag? tag
 
-		if values.empty? then @hash.delete(tag.upcase)
+		if values.empty?
+			@hash.delete(tag.upcase)
 		else
 			@hash[tag.upcase].subtract(values)
 			@hash.delete(tag.upcase) if @hash[tag.upcase].empty?
@@ -145,7 +153,6 @@ class TagContainer
 	end
 
 	private :prepare_tag
-	private :valid_tag?
 end
 
 end

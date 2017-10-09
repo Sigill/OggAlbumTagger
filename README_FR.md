@@ -145,7 +145,8 @@ Enfin, exécutez `bundle install` afin d'installer les dépendances Ruby.
 
 Vous pourrez alors :
 
-* Exécuter OggAlbumTagger : `bundle exec ogg-album-tagger…`.
+* Exécuter OggAlbumTagger : `bundle exec ogg-album-tagger …`.
+* Executer les tests : `rake test`.
 * L'installer : `rake install`.
 * Générer le gem : `gem build ogg_album_tagger.gemspec`.
 
