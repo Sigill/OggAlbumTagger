@@ -188,9 +188,9 @@ def execute_command(command_line)
 	end
 end
 
-def list_ogg_files dir, with_dir = false
+def list_ogg_files dir
 	Dir.chdir(dir) do
-		Dir.glob("**/*.ogg").map { |f| with_dir ? Pathname.new(dir).join(f) : Pathname.new(f) }
+		Dir.glob("**/*.ogg").map { |f| Pathname.new(dir).join(f) }
 	end
 end
 
@@ -237,7 +237,7 @@ else
 	ARGV.each do |arg|
 		begin
 			if File.directory?(arg)
-				files.concat list_ogg_files(arg, !options[:album])
+				files.concat list_ogg_files(arg)
 			elsif File.file?(arg)
 				files << Pathname.new(arg)
 			else
@@ -249,7 +249,8 @@ else
 	end
 
 	begin
-		$library = OggAlbumTagger::Library.new(files, options[:album] ? Pathname.new(ARGV[0]) : nil)
+		containers = files.map { |f| [f, OggAlbumTagger::TagContainer.new(f)] }.to_h
+		$library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]) : nil, containers)
 	rescue OggAlbumTagger::Error => ex
 		abort ex.message
 	end

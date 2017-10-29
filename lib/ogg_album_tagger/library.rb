@@ -13,30 +13,24 @@ module OggAlbumTagger
 # A Library is just a hash associating each ogg file to a TagContainer.
 # A subset of file can be selected in order to be tagged.
 class Library
+	attr_reader :path
 	attr_reader :selected_files
 
-	# Build the library by parsing specified ogg file.
-	# In order to consider the library as a single album, you have to separately provide
-	# the absolute path to the album and relative paths to the ogg files.
-	# Otherwise, use absolute paths.
+	# Build a Library from a list of TagContainer.
 	#
-	# Paths must be provided as Pathnames.
-	#
-	# A OggAlbumTagger::SystemError will be raised if vorbiscomment cannot be invoked.
-	# A OggAlbumTagger::ArgumentError will be raised if one of the files is not a valid ogg file.
-	def initialize files, dir = nil
+	# dir:: The name of the directory supposed to contain all the files. Pass any name if the
+	#       tracks of that library are related, +nil+ otherwise.
+	# containers:: A hash mapping the files to the containers.
+	def initialize dir, containers
 		@path = dir
-		@files = {}
 
-		files.each do |f|
-			@files[f] = TagContainer.new(fullpath(f))
-		end
+		@files = Hash[containers]
 
 		@selected_files = Set.new @files.keys
 	end
 
 	# Return the full path to the file.
-	def fullpath(file)
+	def self.fullpath(file)
 		@path.nil? ? file : @path + file
 	end
 
@@ -93,7 +87,7 @@ class Library
 	# Write the tags to the files.
 	def write
 		@selected_files.each do |file|
-			@files[file].write(fullpath(file))
+			@files[file].write(file)
 		end
 	end
 
@@ -103,12 +97,14 @@ class Library
 	def set_tag(tag, *values)
 		tag.upcase!
 		@selected_files.each { |file| @files[file].set_values(tag, *values) }
+		self
 	end
 
 	# Tags the selected files with the specified values.
 	def add_tag(tag, *values)
 		tag.upcase!
 		@selected_files.each { |file| @files[file].add_values(tag, *values) }
+		self
 	end
 
 	# Remove the specified values from the selected files.
@@ -117,12 +113,13 @@ class Library
 	def rm_tag(tag, *values)
 		tag.upcase!
 		@selected_files.each { |file| @files[file].rm_values(tag, *values) }
+		self
 	end
 
 	# Return a list of the files in the library.
 	def ls
 		@files.keys.sort.each_with_index.map do |file, i|
-			{ file: file, position: i+1, selected: @selected_files.include?(file) }
+			{ file: (@path.nil? ? file : file.relative_path_from(@path)).to_s, position: i+1, selected: @selected_files.include?(file) }
 		end
 	end
 
@@ -189,6 +186,8 @@ class Library
 		end
 
 		@selected_files.replace sel
+
+		self
 	end
 
 	# Automatically set the TRACKNUMBER tag of the selected files based on their position in the selection.
@@ -220,10 +219,10 @@ class Library
 		self.tag_used_k_times?(tag, 1)
 	end
 
-	# Test if a tag has multiple values in a single file.
+	# Test if at least one of the files has multiple values for the specified tag..
 	def tag_used_multiple_times?(tag)
 		values = @selected_files.map { |file| @files[file][tag] }
-		values.reduce(false) { |r, v| r || v.size > 1 }
+		values.reduce(false) { |r, v| r || (v.size > 1) }
 	end
 
 	# Test if a tag is absent from each selected files.
@@ -247,6 +246,7 @@ class Library
 		validate_tag(tag) { |v| (v.size == 0) || (v.first.to_s =~ /^[1-9][0-9]*$/) }
 	end
 
+	# TODO ISO 8601 compliance (http://www.cl.cam.ac.uk/~mgk25/iso-time.html)
 	def date_tag?(tag)
 		validate_tag(tag) { |v| (v.size == 0) || (v.first.to_s =~ /^\d\d\d\d$/) }
 	end
@@ -262,8 +262,9 @@ class Library
 	# * DISCNUMBER must be used at most one time per file.
 	# * TRACKNUMBER and DISCNUMBER must have numerical values.
 	def check
+		# Catch all the tags that cannot have multiple values.
 		%w{ARTIST TITLE DATE ALBUM ALBUMDATE ARTISTALBUM TRACKNUMBER DISCNUMBER}.each do |t|
-			raise OggAlbumTagger::MetadataError, "The #{t} tag cannot be used multiple times in a single track." if tag_used_multiple_times?(t)
+			raise OggAlbumTagger::MetadataError, "The #{t} tag must not appear more than once per track." if tag_used_multiple_times?(t)
 		end
 
 		%w{DISCNUMBER TRACKNUMBER}.each do |t|
@@ -282,17 +283,25 @@ class Library
 
 		return if @path.nil?
 
-		raise OggAlbumTagger::MetadataError, "The ALBUM tag must have a single and uniq value among all songs." unless uniq_tag?('ALBUM')
+		raise OggAlbumTagger::MetadataError, "The ALBUM tag must have a single and unique value among all songs." unless uniq_tag?('ALBUM')
+
+		unless uniq_tag?('DATE')
+			raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag must have a single and uniq value among all songs." unless uniq_tag?('ALBUMDATE')
+		end
+
+		if @selected_files.size == 1
+			raise OggAlbumTagger::MetadataError, 'This album has only one track. The consistency of some tags cannot be verified.'
+		end
 
 		if uniq_tag?('ARTIST')
-			raise OggAlbumTagger::MetadataError, 'The ALBUMARTIST is only required for compilations.' if tag_used?('ALBUMARTIST')
+			if tag_used?('ALBUMARTIST')
+				raise OggAlbumTagger::MetadataError, 'The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.'
+			end
 		else
 			if not uniq_tag?('ALBUMARTIST') or (first_value('ALBUMARTIST') != 'Various artists')
 				raise OggAlbumTagger::MetadataError, 'This album seems to be a compilation. The ALBUMARTIST tag should have the value "Various artists".'
 			end
 		end
-
-		raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag must have a single and uniq value among all songs." if not uniq_tag?('DATE') and not uniq_tag?('ALBUMDATE')
 	end
 
 	# Auto rename the directory and the ogg files of the library.
@@ -314,7 +323,8 @@ class Library
 	# Ogg file:  ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE
 	#
 	# Disc and track numbers are padded with zeros.
-	def auto_rename
+
+	def compute_rename_mapping
 		check()
 
 		mapping = {}
@@ -365,7 +375,7 @@ class Library
 			else
 				@selected_files.each do |file|
 					tags = @files[file]
-					mapping[file] = sprintf('%s - %s - %s - %s - %s.ogg',
+					mapping[file] = sprintf('%s - %s - %s - %s - %s - %s.ogg',
 					                        tags.first('ALBUM'), album_date, format_number.call(tags),
 					                        tags.first('ARTIST'), tags.first('TITLE'), tags.first('DATE'))
 				end
@@ -383,35 +393,63 @@ class Library
 			raise OggAlbumTagger::MetadataError, 'Generated filenames are not uniq.'
 		end
 
-		# Renaming the album directory
-		unless @path.nil?
-			begin
-				newpath = @path.dirname + albumdir
-				if @path.expand_path != newpath.expand_path
-					FileUtils.mv(@path, newpath)
-					@path = newpath
-				end
-			rescue Exception => ex
-				raise OggAlbumTagger::SystemError, "Cannot rename \"#{@path}\" to \"#{newpath}\"."
-			end
-		end
+		newpath = @path.nil? ? nil : (@path.dirname + albumdir)
+
+		return newpath, mapping
+	end
+
+	def short_path(file)
+		@path.nil? ? file : file.relative_path_from(@path)
+	end
+
+	def auto_rename
+		newpath, mapping = compute_rename_mapping
 
 		# Renaming the ogg files
 		Set.new(@selected_files).each do |file|
 			begin
-				oldpath = fullpath(file)
-				newpath = (@path.nil? ? file.dirname : @path) + mapping[file]
-				newpath_rel = file.dirname + mapping[file]
+				newfile = (@path.nil? ? file.dirname : @path) + mapping[file]
 
-				if oldpath != newpath
-					FileUtils.mv(oldpath, newpath)
-					@files[newpath_rel] = @files.delete(file)
-					@selected_files.delete(file).add(newpath_rel)
+				# Don't rename anything if there's no change.
+				if file != newfile
+					rename(file, newfile)
+					# Change the key of the file.
+					@files[newfile] = @files.delete(file)
+					# Replace the key in the selected files list.
+					@selected_files.delete(file).add(newfile)
 				end
 			rescue Exception => ex
-				raise OggAlbumTagger::SystemError, "Cannot rename \"#{file}\" to \"#{mapping[file]}\"."
+				raise OggAlbumTagger::SystemError, "Cannot rename \"#{short_path(file)}\" to \"#{short_path(newfile)}\"."
 			end
 		end
+
+		# Renaming the album directory
+		unless @path.nil?
+			oldpath = @path
+
+			begin
+				# Don't rename anything if there's no change.
+				if @path != newpath
+					rename(@path, newpath)
+					@path = newpath
+
+					@files.keys.each { |file|
+						newfile = newpath + file.relative_path_from(oldpath)
+
+						# Change the key of the file.
+						@files[newfile] = @files.delete(file)
+						# Replace the key in the selected files list.
+						@selected_files.delete(file).add(newfile) if @selected_files.include?(file)
+					}
+				end
+			rescue Exception => ex
+				raise OggAlbumTagger::SystemError, "Cannot rename \"#{oldpath}\" to \"#{newpath}\"."
+			end
+		end
+	end
+
+	def rename(oldpath, newpath)
+		FileUtils.mv(oldpath, newpath)
 	end
 end
 

@@ -19,11 +19,11 @@ Gem::Specification.new do |spec|
                           lib/ogg_album_tagger/tag_container.rb
                           lib/ogg_album_tagger/version.rb}
   spec.executables   = %w{ogg-album-tagger}
-  spec.test_files    = spec.files.grep(%r{^(test|spec|features)/})
   spec.require_paths = ["lib"]
 
   spec.add_development_dependency "bundler", "~> 1.7"
   spec.add_development_dependency "rake", "~> 10.0"
+  spec.add_development_dependency "minitest", "~> 5.9"
 
   spec.add_runtime_dependency "exiftool", ["~> 0.6"]
   spec.add_runtime_dependency "taglib-ruby", ["~> 0.7"]

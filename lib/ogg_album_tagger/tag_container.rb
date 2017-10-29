@@ -96,6 +96,8 @@ class TagContainer
 			prepare_tag tag
 			@hash[tag.upcase].replace(values)
 		end
+
+		self
 	end
 
 	# Add some values to the specified tag.
@@ -104,6 +106,8 @@ class TagContainer
 
 		prepare_tag tag
 		@hash[tag.upcase].merge(values)
+
+		self
 	end
 
 	# Remove some tags. If no value is specified, the specified tag is removed.
@@ -116,6 +120,8 @@ class TagContainer
 			@hash[tag.upcase].subtract(values)
 			@hash.delete(tag.upcase) if @hash[tag.upcase].empty?
 		end
+
+		self
 	end
 
 	# Returns the list of present tags.
