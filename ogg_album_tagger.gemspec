@@ -13,8 +13,10 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
 
   spec.files         = %w{bin/ogg-album-tagger
+                          lib/ogg_album_tagger/cli.rb
                           lib/ogg_album_tagger/exceptions.rb
                           lib/ogg_album_tagger/library.rb
+                          lib/ogg_album_tagger/ogg_file.rb
                           lib/ogg_album_tagger/picture.rb
                           lib/ogg_album_tagger/tag_container.rb
                           lib/ogg_album_tagger/version.rb}
@@ -24,6 +26,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.7"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "minitest", "~> 5.9"
+  spec.add_development_dependency "m", "~> 1.5"
 
   spec.add_runtime_dependency "exiftool", ["~> 0.6"]
   spec.add_runtime_dependency "taglib-ruby", ["~> 0.7"]

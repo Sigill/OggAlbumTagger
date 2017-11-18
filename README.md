@@ -76,17 +76,17 @@ __`auto tracknumber`__: automatically sets the `TRACKNUMBER` tag based on the se
 
 __`auto rename`__: renames the directory and the files based on the tags. The tags must be properly tagged: the `check` command will be automatically executed, and no renaming will take place unless all the files are properly tagged. Different patterns are used:
 
-* Single files  
-  Directory: N/A  
+* Single files
+  Directory: N/A
   Ogg files: ARTIST - DATE - TITLE.ogg
-* Albums  
-  Directory: ARTIST - DATE - ALBUM  
+* Albums
+  Directory: ARTIST - DATE - ALBUM
   Ogg files: ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE.ogg
-* Single artist compilations (albums where tracks have different dates, like a best-of)  
-  Directory: ARTIST - ALBUMDATE - ALBUM  
+* Single artist compilations (albums where tracks have different dates, like a best-of)
+  Directory: ARTIST - ALBUMDATE - ALBUM
   Ogg files: ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE.ogg
-* Compilations  
-  Directory: ALBUM - ALBUMDATE  
+* Compilations
+  Directory: ALBUM - ALBUMDATE
   Ogg files: ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - DATE - TITLE.ogg
 
 `DISCNUMBER` and `TRACKNUMBER` tags are automatically padded with zeros in order to be of equal length and allow alphabetical sort.
@@ -122,7 +122,7 @@ Finally, run `bundle install` to install Ruby dependencies.
 You will then be able to:
 
 * Run from source: `bundle exec ogg-album-tagger …`.
-* Run the tests: `rake test`.
+* Run the tests: `rake test` or `m test/test_something.rb[:line]` to run a subset of tests.
 * Install from source: `rake install`.
 * Build the gem: `gem build ogg_album_tagger.gemspec`.
 

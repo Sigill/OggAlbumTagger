@@ -1,74 +1,21 @@
 require 'minitest/autorun'
 require 'set'
-require 'ogg_album_tagger/tag_container'
-require 'ogg_album_tagger/library'
 require 'fileutils'
 
-# Mock of a TagContainer that can be built manually instead of reading an Ogg file.
-class FakeOgg < OggAlbumTagger::TagContainer
-    # Allow to build a TagContainer using the following syntax:
-    #
-    # <tt>t = FakeOgg.new artist: "Alice", genre: %w{Pop Rock}, tracknumber: 1, ...</tt>
-    # The values associated to a tag are automatically casted to a String.
-    # Single values are treated as an array of one value.
-    def initialize tags = {}
-        @hash = Hash.new
+require 'ogg_album_tagger/tag_container'
+require 'ogg_album_tagger/ogg_file'
+require 'ogg_album_tagger/library'
 
-        tags.each { |tag, values|
-            prepare_tag(tag.to_s.upcase)
-            values = [values] unless values.is_a? Array
-            values.each { |value| @hash[tag.to_s.upcase].add(value.to_s) }
-        }
-    end
+require 'library_helper'
 
-    # For test purpose, overriden to do nothing.
-    def write(file) end
-end
-
-# Helper method that build a FakeOgg object from the specified tags.
+# Helper method that build a TagContainer object from the specified tags.
 def ogg(tags = {})
-    FakeOgg.new(tags)
-end
-
-# Library with some helper methods to easily write unit tests.
-class FakeLibrary < OggAlbumTagger::Library
-    attr_reader :files
-
-    # For test purpose, overriden to do nothing.
-    def write; end
-
-    # For test purpose, overriden to do nothing.
-    def rename(oldpath, newpath); end
-
-    # Helper method to apply some modification to a subset of the library.
-    # Applies the specified, yields +self+ then applies another selection.
-    # - selection:: The selection to apply before yielding.
-    # - after:: The selection to apply before returning.
-    def apply(selection, after = %w{all})
-        select(selection)
-        yield(self)
-        select(after)
-
-        self
-    end
-
-    # Override the original select() method to allow the selection to be specified with a single value,
-    # which is automatically transformed to an array of string as expected by the original select() method.
-    def select(args)
-        args = args.to_s unless args.is_a? String or args.is_a? Array
-        args = [args] unless args.is_a? Array
-        super(args)
-    end
-
-    # Helper method to select all items in the library.
-    def select_all
-        select %w{all}
-    end
+    OggAlbumTagger::TagContainer.new(tags)
 end
 
 # Helper method to build a mocked library.
 def library(dir, tracks = {})
-    FakeLibrary.new(dir, tracks)
+    TestingLibrary.new(dir, tracks)
 end
 
 # Helper function to create a test directory containing blank ogg files.
@@ -81,7 +28,7 @@ def make_fs_library(dir, *relpaths)
         path = dir + relpath
         FileUtils.cp("test/data/empty.ogg", path.to_s)
 
-        [relpath, OggAlbumTagger::TagContainer.new(path)]
+        [relpath, OggAlbumTagger::OggFile.new(path)]
     }.to_h
 end
 
@@ -543,8 +490,8 @@ class LibraryTest < Minitest::Test
             assert_equal [dir + "Alice - 2000 - This song.ogg", dir + "Bob - 2001 - That song.ogg"].to_set, dir.children.to_set
 
             # Load the ogg files again and make sure we havn't mixed anything.
-            a = OggAlbumTagger::TagContainer.new(dir + "Alice - 2000 - This song.ogg")
-            b = OggAlbumTagger::TagContainer.new(dir + "Bob - 2001 - That song.ogg")
+            a = OggAlbumTagger::OggFile.new(dir + "Alice - 2000 - This song.ogg")
+            b = OggAlbumTagger::OggFile.new(dir + "Bob - 2001 - That song.ogg")
 
             refute_nil a
             refute_nil b

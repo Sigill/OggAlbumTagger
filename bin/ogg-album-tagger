@@ -4,267 +4,91 @@ require 'rubygems'
 
 require 'ogg_album_tagger/version'
 require 'ogg_album_tagger/library'
-require 'ogg_album_tagger/picture'
-require 'ogg_album_tagger/tag_container'
-require 'ogg_album_tagger/exceptions'
+require 'ogg_album_tagger/ogg_file'
+require 'ogg_album_tagger/cli'
 
 require 'readline'
 require 'optparse'
-require 'shellwords'
-
-def autocomplete(input)
-	context = Readline.line_buffer.slice(0, Readline.point - input.length)
-	begin
-		args = Shellwords.shellwords(context)
-
-		# If there is no space after a quoted string, no autocompletion,
-		# or we may end up with things like "something"somethingelse
-		return [] if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
-	rescue ArgumentError => ex
-		# We are autocompleting a quoted string
-		# The quote will be the last item in the context, so we dump it
-		context.slice!(-1) if context.size > 0 and Readline.completer_quote_characters.include?(context[-1])
-		begin
-			args = Shellwords.shellwords(context)
-		rescue ArgumentError => ex
-			return []
-		end
-	end
-
-	props = []
-
-	if args.empty? then props = %w{ls select show set add rm auto check write help exit quit}
-	elsif %w{ls select check help exit quit}.include?(args[0]) then props = []
-	elsif args[0] == 'show'
-		if args.size == 1
-			props = %w{tag}
-		elsif args[1] == 'tag' and args.size == 2
-			props = $library.tags_used
-		end
-	elsif %w{add set}.include? args[0]
-		if args.size == 1
-			props = $library.tags_used
-		elsif %w{METADATA_BLOCK_PICTURE PICTURE}.include? args[1].upcase
-			if args.size == 2
-				props = Readline::FILENAME_COMPLETION_PROC.call(input)
-			end
-		end
-	elsif args[0] == 'rm'
-		if args.size == 1
-			props = $library.tags_used
-		else
-			tag = args[1].upcase
-			if tag == 'METADATA_BLOCK_PICTURE'
-				$stderr.puts
-				$stderr.puts "Autocompletion is not supported for pictures"
-				Readline.refresh_line
-			else props = $library.tag_summary(tag).values.flatten.uniq
-			end
-		end
-	elsif args[0] == 'auto'
-		if args.length == 1
-			props = %w{tracknumber rename}
-		end
-	end
-
-	(props || []).grep(/^#{Regexp.escape(input)}/i).map do |v|
-		v.include?(' ') ? "\"#{v}\"" : v
-	end
-end
-
-def print_album_summary(summary)
-	OggAlbumTagger::TagContainer.sorted_tags(summary.keys) do |tag|
-		puts tag
-
-		if (summary[tag].size == $library.selected_files.size) && (summary[tag].values.uniq.length == 1)
-			# If all tracks have only one common value
-			puts "\t" + OggAlbumTagger::TagContainer::pp_tag(summary[tag].first[1])
-		else
-			summary[tag].keys.sort.each do |i|
-				values = summary[tag][i]
-				puts sprintf("\t%4d: %s", i+1, OggAlbumTagger::TagContainer::pp_tag(values))
-			end
-		end
-	end
-end
-
-def show_command(command)
-	case command.length
-	when 0
-		print_album_summary($library.summary)
-	else
-		case command[0]
-		when 'tag'
-			if command.size == 1 then puts 'You need to specify a tag name'
-			else print_album_summary $library.summary(command[1].upcase)
-			end
-		else
-			puts "Unknown command 'show #{command[0]}'"
-		end
-	end
-end
-
-def ls_command
-	$library.ls().each do |f|
-		puts sprintf("%s %4d: %s", (f[:selected] ? '*' : ' '), f[:position], f[:file])
-	end
-end
-
-def handle_picture_args args
-	if %w{METADATA_BLOCK_PICTURE PICTURE}.include? args[0].upcase
-		file = args[1]
-		desc = args.length == 2 ? args[1] : ''
-		args.clear
-		args << 'METADATA_BLOCK_PICTURE'
-		args << OggAlbumTagger::Picture::generate_metadata_block_picture(file, desc)
-	end
-end
-
-def execute_command(command_line)
-	begin
-		command, *args = Shellwords.shellwords(command_line)
-	rescue ::StandardError => ex
-		puts 'Invalid command.'
-		return
-	end
-
-	begin
-		case command
-		when 'ls' then ls_command()
-		when 'select'
-			if args.length < 1
-				puts 'You need to specify the files you want to select. Either enter "all", a single number or a range (ex. "3-5").', 'Number and range based selections can be made cumulative by adding a plus or minus sign in front of the selector (ex. "-1-3").'
-			else
-				$library.select(args)
-				ls_command()
-			end
-		when 'show' then show_command(args)
-		when 'set'
-			if args.length < 2
-				puts 'You need to specify the tag to edit and at least one value.'
-			else
-				handle_picture_args(args)
-				$library.set_tag(*args)
-				show_command(['tag', args[0]])
-			end
-		when 'add'
-			if args.length < 2
-				puts 'You need to specify the tag to edit and at least one value.'
-			else
-				handle_picture_args(args)
-				$library.add_tag(*args)
-				show_command(['tag', args[0]])
-			end
-		when 'rm'
-			if args.length < 1
-				puts 'You need to specify the tag to edit and eventually one or several values.'
-			else
-				$library.rm_tag(*args)
-				show_command(['tag', args[0]])
-			end
-		when 'auto'
-			if args.length < 1
-				puts 'You need to specify the auto command you want to execute.'
-			else
-				case args[0]
-				when 'tracknumber' then $library.auto_tracknumber()
-				when 'rename'
-					$library.auto_rename
-					ls_command()
-				end
-			end
-		when 'check'
-			$library.check
-			puts "OK"
-		when 'write'
-			$library.write
-		when 'help'
-			# TODO
-		else
-			puts "Unknown command \"#{command}\""
-		end
-	rescue OggAlbumTagger::Error => err
-		puts err
-	end
-end
 
 def list_ogg_files dir
-	Dir.chdir(dir) do
-		Dir.glob("**/*.ogg").map { |f| Pathname.new(dir).join(f) }
-	end
+    Dir.chdir(dir) do
+        Dir.glob("**/*.ogg").map { |f| Pathname.new(dir).join(f) }
+    end
 end
 
 options = {album: false}
 option_parser = OptionParser.new do |opts|
-	executable_name = File.basename($PROGRAM_NAME)
-	opts.banner = "Interactive edition of ogg tags with album/compilation support.\n" +
-	              "Usage: #{executable_name} [options] files|directories"
+    executable_name = File.basename($PROGRAM_NAME)
+    opts.banner = "Interactive edition of ogg tags with album/compilation support.\n" +
+                  "Usage: #{executable_name} [options] files|directories"
 
-	opts.separator "Options:"
+    opts.separator "Options:"
 
-	opts.on("-a", "--album", "Album mode: treat a single directory as an album.") do
-		options[:album] = true
-	end
+    opts.on("-a", "--album", "Album mode: treat a single directory as an album.") do
+        options[:album] = true
+    end
 
-	opts.on("-v", "--version", "Display version information and exit.") do
-		puts "OggAlbumTagger #{OggAlbumTagger::VERSION}"
-		exit
-	end
+    opts.on("-v", "--version", "Display version information and exit.") do
+        puts "OggAlbumTagger #{OggAlbumTagger::VERSION}"
+        exit
+    end
 
-	opts.on("-h", "--help", "Print this help and exit.") do
-		puts opts
-		exit
-	end
+    opts.on("-h", "--help", "Print this help and exit.") do
+        puts opts
+        exit
+    end
 
-	opts.separator ""
-	opts.separator "OggAlbumTagger is released under the terms of the MIT License."
-	opts.separator "For more informations, updates and bug reports, see https://github.com/Sigill/OggAlbumTagger."
+    opts.separator ""
+    opts.separator "OggAlbumTagger is released under the terms of the MIT License."
+    opts.separator "For more informations, updates and bug reports, see https://github.com/Sigill/OggAlbumTagger."
 end
 
 option_parser.parse!
 
 if ARGV.size == 0
-	puts option_parser
-	exit
+    puts option_parser
+    exit
 else
-	if options[:album]
-		unless ARGV.size == 1 and File.directory?(ARGV[0])
-			abort "Error: in album mode, you have to provide a single directory as argument."
-		end
-	end
+    if options[:album]
+        unless ARGV.size == 1 and File.directory?(ARGV[0])
+            abort "Error: in album mode, you have to provide a single directory as argument."
+        end
+    end
 
-	files = []
-	ARGV.each do |arg|
-		begin
-			if File.directory?(arg)
-				files.concat list_ogg_files(arg)
-			elsif File.file?(arg)
-				files << Pathname.new(arg)
-			else
-				raise Errno::ENOENT
-			end
-		rescue Errno::ENOENT
-			abort "#{arg} does not exists."
-		end
-	end
+    files = []
+    ARGV.each do |arg|
+        begin
+            if File.directory?(arg)
+                files.concat list_ogg_files(arg)
+            elsif File.file?(arg)
+                files << Pathname.new(arg)
+            else
+                raise Errno::ENOENT
+            end
+        rescue Errno::ENOENT
+            abort "#{arg} does not exists."
+        end
+    end
 
-	begin
-		containers = files.map { |f| [f, OggAlbumTagger::TagContainer.new(f)] }.to_h
-		$library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]) : nil, containers)
-	rescue OggAlbumTagger::Error => ex
-		abort ex.message
-	end
+    begin
+        containers = files.map { |f| [f, OggAlbumTagger::OggFile.new(f)] }.to_h
+        $library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]) : nil, containers)
+        $interpreter = OggAlbumTagger::CLI.new($library)
+    rescue OggAlbumTagger::Error => ex
+        abort ex.message
+    end
 end
 
-Readline.completion_append_character = " "
-Readline.completer_quote_characters = "\"'"
+$interpreter.configure_readline
 Readline.completion_proc = ->(input) {
-	autocomplete(input)
+    $interpreter.autocomplete(Readline.line_buffer, Readline.point, input)
+    # puts input
+    # return []
 }
 
 loop do
-	command = Readline.readline("> ", true)
-	break if command.nil? or command.eql?('exit') or command.eql?('quit')
+    command = Readline.readline("> ", true)
+    break if command.nil? or command.eql?('exit') or command.eql?('quit')
 
-	execute_command(command.strip)
+    $interpreter.execute_command(command.strip)
 end
