@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 require 'set'
 require 'fileutils'
+require 'pathname'
 
 require 'ogg_album_tagger/tag_container'
 require 'ogg_album_tagger/ogg_file'

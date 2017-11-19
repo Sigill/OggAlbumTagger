@@ -3,9 +3,7 @@ require 'ogg_album_tagger/tag_container'
 require 'ogg_album_tagger/exceptions'
 
 require 'set'
-require 'shellwords'
 require 'pathname'
-require 'open3'
 require 'fileutils'
 
 module OggAlbumTagger
