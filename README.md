@@ -62,7 +62,7 @@ Multiple selectors can be specified at once. Order is important.
 
 Selectors can also be applied to a single command by prefixing the command with them, e.g. `3-5 show`.
 
-__`show`__: without argument, displays the tags of the selected files. Tags are sorted alphabetically, except for the `metadata_block_picture` which is listed last. The command can be restricted to a single tag XXX by using the `show tag xxx` command.
+__`show`__: without argument, displays the tags of the selected files. Tags are sorted alphabetically, except for the `metadata_block_picture` which is listed last. The command can be restricted to a single tag xxx by using the `show xxx` command.
 
 __`set <tag> value1 [value2…]`__: tags each selected files with the specified tag and all specified values. If the tag does not exist, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
 

@@ -141,11 +141,7 @@ class CLITest < Minitest::Test
 
 
     def test_autocomplete_show
-        assert_cmd_autocomplete @cli, "show \t", %w{tag}
-    end
-
-    def test_autocomplete_show2
-        assert_cmd_autocomplete @cli, "show tag \t", %w{artist album genre}
+        assert_cmd_autocomplete @cli, "show \t", %w{artist album genre}
     end
 
 

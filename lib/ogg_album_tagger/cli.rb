@@ -68,14 +68,8 @@ class CLI
         elsif %w{ls select check help exit quit}.include?(context[0])
             # These commands don't take any argument or don't need autocomplete.
         elsif context[0] == 'show'
-            # The "show" command is followed by either nothing,
-            if context.size == 1
-                # or "tag"
-                return %w{tag}
-            elsif context[1] == 'tag' and context.size == 2
-                # followed by one of the current tags.
-                return @library.tags_used
-            end
+            # The "show" command can be followed by a tag
+            return @library.tags_used if context.size == 1
         elsif %w{add set}.include?(context[0])
             case context.size
             when 1
@@ -128,19 +122,12 @@ class CLI
         end
     end
 
-    def show_command(command)
-        case command.length
+    def show_command(args)
+        case args.length
         when 0
             print_album_summary(@library.summary)
         else
-            case command[0]
-            when 'tag'
-                if command.size == 1 then puts 'You need to specify a tag name'
-                else print_album_summary @library.summary(command[1].upcase)
-                end
-            else
-                puts "Unknown command 'show #{command[0]}'"
-            end
+            print_album_summary @library.summary(args[0].upcase)
         end
     end
 
@@ -201,7 +188,7 @@ class CLI
                 else
                     handle_picture_args(args)
                     @library.set_tag(*args)
-                    show_command(['tag', args[0]])
+                    show_command([args[0]])
                 end
             when 'add'
                 if args.length < 2
@@ -209,14 +196,14 @@ class CLI
                 else
                     handle_picture_args(args)
                     @library.add_tag(*args)
-                    show_command(['tag', args[0]])
+                    show_command([args[0]])
                 end
             when 'rm'
                 if args.length < 1
                     puts 'You need to specify the tag to edit and eventually one or several values.'
                 else
                     @library.rm_tag(*args)
-                    show_command(['tag', args[0]])
+                    show_command([args[0]])
                 end
             when 'auto'
                 if args.length < 1
