@@ -3,7 +3,6 @@ require 'ogg_album_tagger/tag_container'
 require 'ogg_album_tagger/exceptions'
 
 require 'set'
-require 'pathname'
 require 'fileutils'
 
 module OggAlbumTagger
@@ -19,24 +18,19 @@ class Library
 	# dir:: The name of the directory supposed to contain all the files. Pass any name if the
 	#       tracks of that library are related, +nil+ otherwise.
 	# containers:: A hash mapping the files to the containers.
-	def initialize dir, containers
+	def initialize dir, tracks
 		@path = dir
 
-		@files = Hash[containers]
+		@files = tracks.map { |e| e }
 
-		@selected_files = Set.new @files.keys
-	end
-
-	# Return the full path to the file.
-	def self.fullpath(file)
-		@path.nil? ? file : @path + file
+		@selected_files = @files.slice(0, @files.size).to_set
 	end
 
 	# Returns the list of the tags used in the selected files.
 	def tags_used
 		s = Set.new
 		@selected_files.each do |file|
-			s.merge @files[file].tags
+			s.merge file.tags
 		end
 		s.to_a.map { |v| v.downcase }
 	end
@@ -59,14 +53,14 @@ class Library
 	def summary(selected_tag = nil)
 		data = Hash.new { |h, k| h[k] = Hash.new }
 
-		positions = Hash[@files.keys.sort.each_with_index.to_a]
+		@files.each_with_index { |file, i|
+			next unless @selected_files.include? file
 
-		@selected_files.each do |file|
-			@files[file].each do |tag, values|
+			file.each do |tag, values|
 				next unless selected_tag.nil? or tag.eql?(selected_tag)
-				data[tag][positions[file]] = values.sort
+				data[tag][i] = values.sort
 			end
-		end
+		}
 
 		data
 	end
@@ -85,7 +79,7 @@ class Library
 	# Write the tags to the files.
 	def write
 		@selected_files.each do |file|
-			@files[file].write(file)
+			file.write(file.path)
 		end
 	end
 
@@ -94,14 +88,14 @@ class Library
 	# Any previous value will be removed.
 	def set_tag(tag, *values)
 		tag.upcase!
-		@selected_files.each { |file| @files[file].set_values(tag, *values) }
+		@selected_files.each { |file| file.set_values(tag, *values) }
 		self
 	end
 
 	# Tags the selected files with the specified values.
 	def add_tag(tag, *values)
 		tag.upcase!
-		@selected_files.each { |file| @files[file].add_values(tag, *values) }
+		@selected_files.each { |file| file.add_values(tag, *values) }
 		self
 	end
 
@@ -110,46 +104,47 @@ class Library
 	# If no value is specified, the tag will be removed.
 	def rm_tag(tag, *values)
 		tag.upcase!
-		@selected_files.each { |file| @files[file].rm_values(tag, *values) }
+		@selected_files.each { |file| file.rm_values(tag, *values) }
 		self
 	end
 
 	# Return a list of the files in the library.
 	def ls
-		@files.keys.sort.each_with_index.map do |file, i|
-			{ file: (@path.nil? ? file : file.relative_path_from(@path)).to_s, position: i+1, selected: @selected_files.include?(file) }
+		@files.each_with_index.map do |file, i|
+			{ file: (@path.nil? ? file.path : file.path.relative_path_from(@path)).to_s, position: i+1, selected: @selected_files.include?(file) }
 		end
 	end
 
-	# Modify the list of selected files.
+	# Build a Set representing the selected files specified by the selectors.
 	#
 	# The available selector are:
 	# * "all": all files.
 	# * "3": the third file.
-	# * "5-7" the files 5, 6 and 7.
+	# * "5-7": the files 5, 6 and 7.
 	#
 	# The two last selector can be prefixed by "+" or "-" in order to add or remove items
 	# from the current selection. They are called cumulative selectors.
 	#
-	# You can specify several selectors, but non-cumulative selectors cannot be specified after a cumulative one.
-	def select(args)
-		all_files = @files.keys.sort
+	# Non-cumulative selectors cannot be specified after a cumulative one.
+	def build_selection(selectors)
+		return @selected_files if selectors.empty?
+
 		mode = :absolute
 
-		first_rel = !!(args.first =~ /^[+-]/)
+		first_rel = !!(selectors.first =~ /^[+-]/)
 
 		sel = first_rel ? Set.new(@selected_files) : Set.new
 
-		args.each do |selector|
+		selectors.each do |selector|
 			case selector
 			when 'all'
 				raise OggAlbumTagger::ArgumentError, "Cannot use the \"#{selector}\" selector after a cumulative selector (+/-...)" if mode == :cumulative
-				sel.replace all_files
+				sel.replace @files
 			when /^([+-]?)([1-9]\d*)$/
 				i = $2.to_i - 1
-				raise OggAlbumTagger::ArgumentError, "Item #{$2} is out of range" if i >= all_files.length
+				raise OggAlbumTagger::ArgumentError, "Item #{$2} is out of range" if i >= @files.size
 
-				items = [all_files.slice(i)]
+				items = [@files.slice(i)]
 				case $1
 				when '-'
 					sel.subtract items
@@ -164,9 +159,9 @@ class Library
 			when /^([+-]?)(?:([1-9]\d*)-([1-9]\d*))$/
 				i = $2.to_i - 1
 				j = $3.to_i - 1
-				raise OggAlbumTagger::ArgumentError, "Range #{$2}-#{$3} is invalid" if i >= all_files.length or j >= all_files.length or i > j
+				raise OggAlbumTagger::ArgumentError, "Range #{$2}-#{$3} is invalid" if i >= @files.size or j >= @files.size or i > j
 
-				items = all_files.slice(i..j)
+				items = @files.slice(i..j)
 				case $1
 				when '-'
 					sel.subtract items
@@ -183,27 +178,45 @@ class Library
 			end
 		end
 
-		@selected_files.replace sel
+		return sel
+	end
 
-		self
+	# Modify the list of selected files.
+	def select(args)
+		@selected_files.replace(build_selection(args))
+
+		return self
+	end
+
+	def with_selection(selectors)
+		begin
+			previous_selection = Set.new(@selected_files)
+			@selected_files = build_selection(selectors)
+			yield
+		ensure
+			@selected_files = previous_selection
+		end
 	end
 
 	# Automatically set the TRACKNUMBER tag of the selected files based on their position in the selection.
 	def auto_tracknumber
-		@selected_files.sort.each_with_index do |file, i|
-			@files[file].set_values('TRACKNUMBER', (i+1).to_s)
-		end
+		i = 0
+		@files.each { |file|
+			next unless @selected_files.include? file
+			file.set_values('TRACKNUMBER', (i+1).to_s)
+			i += 1
+		}
 	end
 
 	# Test if a tag satisfy a predicate on each selected files.
 	def validate_tag(tag)
-		values = @selected_files.map { |file| @files[file][tag] }
+		values = @selected_files.map { |file| file[tag] }
 		values.reduce(true) { |r, v| r && yield(v) }
 	end
 
 	# Test if a tag is used at least one time in an ogg file.
 	def tag_used?(tag)
-		values = @selected_files.map { |file| @files[file][tag] }
+		values = @selected_files.map { |file| file[tag] }
 		values.reduce(false) { |r, v| r || v.size > 0 }
 	end
 
@@ -219,7 +232,7 @@ class Library
 
 	# Test if at least one of the files has multiple values for the specified tag..
 	def tag_used_multiple_times?(tag)
-		values = @selected_files.map { |file| @files[file][tag] }
+		values = @selected_files.map { |file| file[tag] }
 		values.reduce(false) { |r, v| r || (v.size > 1) }
 	end
 
@@ -235,7 +248,7 @@ class Library
 
 	# Test if a tag has a single value and is uniq across all selected files.
 	def uniq_tag?(tag)
-		values = @selected_files.map { |file| @files[file][tag] }
+		values = @selected_files.map { |file| file[tag] }
 		values.reduce(true) { |r, v| r && (v.size == 1) } && (values.map { |v| v.first }.uniq.length == 1)
 	end
 
@@ -329,8 +342,7 @@ class Library
 
 		if @path.nil?
 			@selected_files.each do |file|
-				tags = @files[file]
-				mapping[file] = sprintf('%s - %s - %s.ogg', tags.first('ARTIST'), tags.first('DATE'), tags.first('TITLE'))
+				mapping[file] = sprintf('%s - %s - %s.ogg', file.first('ARTIST'), file.first('DATE'), file.first('TITLE'))
 			end
 		else
 			tn_maxlength = tag_summary('TRACKNUMBER').values.map { |v| v.first.to_s.length }.max
@@ -354,15 +366,13 @@ class Library
 
 			if uniq_tag?('ARTIST')
 				@selected_files.each do |file|
-					tags = @files[file]
-
-					common_tags = [tags.first('ARTIST'), album_date, tags.first('ALBUM'),
-					               format_number.call(tags), tags.first('TITLE')]
+					common_tags = [file.first('ARTIST'), album_date, file.first('ALBUM'),
+					               format_number.call(file), file.first('TITLE')]
 
 					mapping[file] = if uniq_tag?('DATE')
 						sprintf('%s - %s - %s - %s - %s.ogg', *common_tags)
 					else
-						sprintf('%s - %s - %s - %s - %s - %s.ogg', *common_tags, tags.first('DATE'))
+						sprintf('%s - %s - %s - %s - %s - %s.ogg', *common_tags, file.first('DATE'))
 					end
 				end
 
@@ -372,10 +382,9 @@ class Library
 				                   first_value('ALBUM'))
 			else
 				@selected_files.each do |file|
-					tags = @files[file]
 					mapping[file] = sprintf('%s - %s - %s - %s - %s - %s.ogg',
-					                        tags.first('ALBUM'), album_date, format_number.call(tags),
-					                        tags.first('ARTIST'), tags.first('TITLE'), tags.first('DATE'))
+					                        file.first('ALBUM'), album_date, format_number.call(file),
+					                        file.first('ARTIST'), file.first('TITLE'), file.first('DATE'))
 				end
 
 				albumdir = sprintf('%s - %s', first_value('ALBUM'), album_date)
@@ -388,7 +397,7 @@ class Library
 		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '') }
 
 		if mapping.values.uniq.size != @selected_files.size
-			raise OggAlbumTagger::MetadataError, 'Generated filenames are not uniq.'
+			raise OggAlbumTagger::MetadataError, 'Generated filenames are not unique.'
 		end
 
 		newpath = @path.nil? ? nil : (@path.dirname + albumdir)
@@ -406,18 +415,16 @@ class Library
 		# Renaming the ogg files
 		Set.new(@selected_files).each do |file|
 			begin
-				newfile = (@path.nil? ? file.dirname : @path) + mapping[file]
+				oldfilepath = file.path
+				newfilepath = (@path.nil? ? oldfilepath.dirname : @path) + mapping[file]
 
 				# Don't rename anything if there's no change.
-				if file != newfile
-					rename(file, newfile)
-					# Change the key of the file.
-					@files[newfile] = @files.delete(file)
-					# Replace the key in the selected files list.
-					@selected_files.delete(file).add(newfile)
+				if oldfilepath != newfilepath
+					rename(oldfilepath, newfilepath)
+					file.path = newfilepath
 				end
 			rescue Exception => ex
-				raise OggAlbumTagger::SystemError, "Cannot rename \"#{short_path(file)}\" to \"#{short_path(newfile)}\"."
+				raise OggAlbumTagger::SystemError, "Cannot rename \"#{short_path(oldfilepath)}\" to \"#{short_path(newfilepath)}\"."
 			end
 		end
 
@@ -431,13 +438,10 @@ class Library
 					rename(@path, newpath)
 					@path = newpath
 
-					@files.keys.each { |file|
-						newfile = newpath + file.relative_path_from(oldpath)
+					@files.each { |file|
+						newfilepath = newpath + file.path.relative_path_from(oldpath)
 
-						# Change the key of the file.
-						@files[newfile] = @files.delete(file)
-						# Replace the key in the selected files list.
-						@selected_files.delete(file).add(newfile) if @selected_files.include?(file)
+						file.path = newfilepath
 					}
 				end
 			rescue Exception => ex

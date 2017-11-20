@@ -10,6 +10,8 @@ module OggAlbumTagger
 #
 # Each tag is associated to a Set of values.
 class OggFile < OggAlbumTagger::TagContainer
+    attr_accessor :path
+
     # Initialize a TagContainer from an ogg file.
     def initialize(file)
         begin
@@ -25,6 +27,7 @@ class OggFile < OggAlbumTagger::TagContainer
             end
 
             super(h)
+            @path = file
         rescue Exception => ex
             STDERR.puts ex
             raise OggAlbumTagger::ArgumentError, "#{file} does not seems to be a valid ogg file."

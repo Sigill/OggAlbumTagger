@@ -9,8 +9,8 @@ require 'ogg_album_tagger/cli'
 require 'library_helper'
 
 # Helper method that build a TagContainer object from the specified tags.
-def ogg(tags = {})
-    OggAlbumTagger::TagContainer.new(tags)
+def ogg(path, tags = {})
+    TestingFile.new(path, tags)
 end
 
 # Borrowed from ruby sources
@@ -35,23 +35,6 @@ def replace_stdio(stdin_path, stdout_path)
             Readline.output = STDOUT
         }
     }
-end
-
-def with_readline_env
-    # Backup the values
-    # cqc cannot be restored
-    cqc = Readline.completer_quote_characters || "'\""
-    cac = Readline.completion_append_character
-
-    begin
-        Readline.completer_quote_characters = "\"'"
-        Readline.completion_append_character = " "
-
-        yield
-    ensure
-        Readline.completer_quote_characters = cqc
-        Readline.completion_append_character = cac
-    end
 end
 
 module Minitest::Assertions
@@ -130,9 +113,9 @@ class CLITest < Minitest::Test
     D = (DIR + "d.ogg").freeze
 
     def setup
-        @a = ogg(artist: "Alice", album: "This album")
-        @b = ogg(artist: "Bob", album: "That album", genre: %w{Pop Rock})
-        @lib = TestingLibrary.new(nil, A => @a, B => @b)
+        @a = ogg(A, artist: "Alice", album: "This album")
+        @b = ogg(B, artist: "Bob", album: "That album", genre: %w{Pop Rock})
+        @lib = TestingLibrary.new(nil, [@a, @b])
         @cli = OggAlbumTagger::CLI.new(@lib)
 
         # Setup readline

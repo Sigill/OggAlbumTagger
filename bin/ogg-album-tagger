@@ -12,7 +12,7 @@ require 'optparse'
 
 def list_ogg_files dir
     Dir.chdir(dir) do
-        Dir.glob("**/*.ogg").map { |f| Pathname.new(dir).join(f) }
+        return Dir.glob("**/*.ogg").sort.map { |f| Pathname.new(dir).join(f) }
     end
 end
 
@@ -71,7 +71,7 @@ else
     end
 
     begin
-        containers = files.map { |f| [f, OggAlbumTagger::OggFile.new(f)] }.to_h
+        containers = files.map { |f| OggAlbumTagger::OggFile.new(f) }
         $library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]) : nil, containers)
         $interpreter = OggAlbumTagger::CLI.new($library)
     rescue OggAlbumTagger::Error => ex
@@ -90,5 +90,9 @@ loop do
     command = Readline.readline("> ", true)
     break if command.nil? or command.eql?('exit') or command.eql?('quit')
 
-    $interpreter.execute_command(command.strip)
+    begin
+        $interpreter.execute_command(command.strip)
+    rescue OggAlbumTagger::Error => ex
+        puts ex
+    end
 end

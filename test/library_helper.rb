@@ -1,5 +1,14 @@
 require 'ogg_album_tagger/library'
 
+class TestingFile < OggAlbumTagger::TagContainer
+    attr_accessor :path
+
+    def initialize(path, tags = {})
+        super(tags)
+        @path = path
+    end
+end
+
 # Library with some helper methods to easily write unit tests.
 class TestingLibrary < OggAlbumTagger::Library
     attr_reader :files

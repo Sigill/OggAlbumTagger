@@ -10,12 +10,12 @@ require 'ogg_album_tagger/library'
 require 'library_helper'
 
 # Helper method that build a TagContainer object from the specified tags.
-def ogg(tags = {})
-    OggAlbumTagger::TagContainer.new(tags)
+def ogg(path, tags = {})
+    TestingFile.new(path, tags)
 end
 
 # Helper method to build a mocked library.
-def library(dir, tracks = {})
+def library(dir, *tracks)
     TestingLibrary.new(dir, tracks)
 end
 
@@ -115,52 +115,57 @@ class LibraryTest < Minitest::Test
     D = (DIR + "d.ogg").freeze
 
 
-    # Test the select() method.
-    def test_select
-        lib = library nil, A => ogg(), B => ogg(), C => ogg(), D => ogg()
-        assert_equal Set[A, B, C, D], lib.selected_files
+    # Test the select() and build_selection() methods.
+    def test_selection
+        a = ogg(A)
+        b = ogg(B)
+        c = ogg(C)
+        d = ogg(D)
+
+        lib = library nil, a, b, c, d
+        assert_equal Set[a, b, c, d], lib.selected_files
 
         lib.select(%w{1})
-        assert_equal Set[A], lib.selected_files
+        assert_equal Set[a], lib.selected_files
 
         lib.select(%w{+2})
-        assert_equal Set[A, B], lib.selected_files
+        assert_equal Set[a, b], lib.selected_files
 
         lib.select(%w{-2})
-        assert_equal Set[A], lib.selected_files
+        assert_equal Set[a], lib.selected_files
 
         lib.select(%w{3-4})
-        assert_equal Set[C, D], lib.selected_files
+        assert_equal Set[c, d], lib.selected_files
 
         lib.select(%w{1 2})
-        assert_equal Set[A, B], lib.selected_files
+        assert_equal Set[a, b], lib.selected_files
 
         lib.select(%w{2 3-4})
-        assert_equal Set[B, C, D], lib.selected_files
+        assert_equal Set[b, c, d], lib.selected_files
 
         lib.select(%w{all})
-        assert_equal Set[A, B, C, D], lib.selected_files
+        assert_equal Set[a, b, c, d], lib.selected_files
 
         lib.select(%w{-2-3})
-        assert_equal Set[A, D], lib.selected_files
+        assert_equal Set[a, d], lib.selected_files
 
         lib.select(%w{+2-3})
-        assert_equal Set[A, B, C, D], lib.selected_files
+        assert_equal Set[a, b, c, d], lib.selected_files
 
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{+1 all}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{+1 all}) }
 
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{foo}) }
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{0}) }
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{5}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{foo}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{0}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{5}) }
 
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{+bar}) }
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{+0}) }
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{-5}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{+bar}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{+0}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{-5}) }
 
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{4-2}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{4-2}) }
 
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{+1 2}) }
-        assert_raises(OggAlbumTagger::ArgumentError) { lib.select(%w{+1 2-3}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{+1 2}) }
+        assert_raises(OggAlbumTagger::ArgumentError) { lib.build_selection(%w{+1 2-3}) }
     end
 
     # Test the tags_used() method.
@@ -168,16 +173,16 @@ class LibraryTest < Minitest::Test
         lib = library nil
         assert_equal [] , lib.tags_used
 
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg(baz: %w{qux})
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, baz: %w{qux})
         assert_equal %w{foo baz}, lib.tags_used
 
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg(foo: %w{baz})
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, foo: %w{baz})
         assert_equal %w{foo}, lib.tags_used
     end
 
     # Test the summary() method.
     def test_summary
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg(baz: %w{qux quux})
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, baz: %w{qux quux})
         assert_summary lib, "FOO" => {0 => %w{bar}}, "BAZ" => {1 => %w{quux qux}}
 
         assert_equal({"FOO" => {0 => %w{bar}}}, lib.summary("FOO"))
@@ -196,13 +201,13 @@ class LibraryTest < Minitest::Test
 
     # Test the tag_summary() method.
     def test_tag_summary
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg(foo: %w{corge}, baz: %w{qux quux})
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, foo: %w{corge}, baz: %w{qux quux})
         assert_equal({0 => ["bar"], 1 => ["corge"]}, lib.tag_summary("FOO"))
     end
 
     # Test the first_value() method.
     def test_first_value
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg(foo: %w{bar})
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, foo: %w{bar})
 
         assert_equal("bar", lib.first_value("FOO"))
 
@@ -212,7 +217,7 @@ class LibraryTest < Minitest::Test
 
     # Test the set_tag() method.
     def test_set_tag
-        lib = library nil, A => ogg(), B => ogg()
+        lib = library nil, ogg(A), ogg(B)
 
         lib.set_tag("FOO", "bar")
         assert_summary lib, "FOO" => {0 => %w{bar}, 1 => %w{bar}}
@@ -224,7 +229,7 @@ class LibraryTest < Minitest::Test
 
     # Test the add_tag() method.
     def test_add_tag
-        lib = library nil, A => ogg(foo: %w{bar}), B => ogg()
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B)
 
         lib.add_tag("FOO", "baz")
 
@@ -237,7 +242,7 @@ class LibraryTest < Minitest::Test
 
     # Test the rm_tag() method.
     def test_rm_tag
-        lib = library nil, A => ogg(foo: %w{bar baz qux}), B => ogg(foo: %w{bar baz qux})
+        lib = library nil, ogg(A, foo: %w{bar baz qux}), ogg(B, foo: %w{bar baz qux})
 
         lib.rm_tag("FOO", "bar")
 
@@ -250,18 +255,18 @@ class LibraryTest < Minitest::Test
 
     # Test the ls() method.
     def test_ls
-        lib = library nil, C => ogg(), A => ogg(), B => ogg()
+        lib = library nil, ogg(C), ogg(A), ogg(B)
         lib.select %w{2}
 
-        assert_equal([{file: "/foo/bar/a.ogg", position: 1, selected: false},
-                      {file: "/foo/bar/b.ogg", position: 2, selected: true},
-                      {file: "/foo/bar/c.ogg", position: 3, selected: false}],
+        assert_equal([{file: "/foo/bar/c.ogg", position: 1, selected: false},
+                      {file: "/foo/bar/a.ogg", position: 2, selected: true},
+                      {file: "/foo/bar/b.ogg", position: 3, selected: false}],
                       lib.ls)
     end
 
     # Test the auto_tracknumber() method.
     def test_auto_tracknumber
-        lib = library nil, C => ogg(), A => ogg(), B => ogg()
+        lib = library nil, ogg(C), ogg(A), ogg(B)
 
         lib.select(%w{2 3}).auto_tracknumber()
 
@@ -270,11 +275,16 @@ class LibraryTest < Minitest::Test
 
 
     # Helper method to generate a library composed of a list of unrelated tracks.
+    def make_singles_library_with_tracks
+        a = ogg(A, {artist: "Alice", title: "This song"   , date: 2000})
+        b = ogg(B, {artist: "Bob"  , title: "That song"   , date: 2001})
+        c = ogg(C, {artist: "Carol", title: "Another song", date: 2002})
+        return library(nil, a, b, c), a, b, c
+    end
+
     def make_singles_library
-        library nil,
-                A => ogg({artist: "Alice", title: "This song"   , date: 2000}),
-                B => ogg({artist: "Bob"  , title: "That song"   , date: 2001}),
-                C => ogg({artist: "Carol", title: "Another song", date: 2002})
+        lib, *tracks = make_singles_library_with_tracks
+        return lib
     end
 
     # Test the check() method on a library composed on unrelated tracks.
@@ -286,14 +296,19 @@ class LibraryTest < Minitest::Test
 
 
     # Helper method to generate a library representing an album.
+    def make_album_library_with_tracks
+        a = ogg(A, {artist: "Alice", tracknumber: 1, title: "This song",
+                    album: "This album", date: 2000})
+        b = ogg(B, {artist: "Alice", tracknumber: 2, title: "That song",
+                    album: "This album", date: 2000})
+        c = ogg(C, {artist: "Alice", tracknumber: 3, title: "Another song",
+                    album: "This album", date: 2000})
+        return library(DIR, a, b, c), a, b, c
+    end
+
     def make_album_library
-        library Pathname.new("/foo/bar"),
-                A => ogg({artist: "Alice", tracknumber: 1, title: "This song",
-                          album: "This album", date: 2000}),
-                B => ogg({artist: "Alice", tracknumber: 2, title: "That song",
-                          album: "This album", date: 2000}),
-                C => ogg({artist: "Alice", tracknumber: 3, title: "Another song",
-                          album: "This album", date: 2000})
+        lib, *tracks = make_album_library_with_tracks
+        return lib
     end
 
     # Test the check() method on a library representing an album.
@@ -310,14 +325,19 @@ class LibraryTest < Minitest::Test
 
 
     # Helper method to generate a library representing a best-of.
+    def make_bestof_library_with_tracks
+        a = ogg(A, {artist: "Alice", tracknumber: 1, title: "This song",
+                    date: 2000, album: "This album", albumdate: 2010})
+        b = ogg(B, {artist: "Alice", tracknumber: 2, title: "That song",
+                    date: 2001, album: "This album", albumdate: 2010})
+        c = ogg(C, {artist: "Alice", tracknumber: 3, title: "Another song",
+                    date: 2002, album: "This album", albumdate: 2010})
+        return library(DIR, a, b, c), a, b, c
+    end
+
     def make_bestof_library
-        library Pathname.new("/foo/bar"),
-                A => ogg({artist: "Alice", tracknumber: 1, title: "This song",
-                          date: 2000, album: "This album", albumdate: 2010}),
-                B => ogg({artist: "Alice", tracknumber: 2, title: "That song",
-                          date: 2001, album: "This album", albumdate: 2010}),
-                C => ogg({artist: "Alice", tracknumber: 3, title: "Another song",
-                          date: 2002, album: "This album", albumdate: 2010})
+        lib, *tracks = make_bestof_library_with_tracks
+        return lib
     end
 
     # Test the check() method on a library representing a best-of.
@@ -340,17 +360,22 @@ class LibraryTest < Minitest::Test
 
 
     # Helper method to generate a library representing a compilation.
+    def make_compilation_library_with_tracks
+        a = ogg(A, {artist: "Alice", album: "This album", tracknumber: 1,
+                    title: "This song", date: 2000, albumartist: "Various artists",
+                    albumdate: 2010})
+        b = ogg(B, {artist: "Bob", album: "This album", tracknumber: 2,
+                    title: "That song", date: 2001, albumartist: "Various artists",
+                    albumdate: 2010})
+        c = ogg(C, {artist: "Carol", album: "This album", tracknumber: 3,
+                    title: "Another song", date: 2002, albumartist: "Various artists",
+                    albumdate: 2010})
+        return library(DIR, a, b, c), a, b, c
+    end
+
     def make_compilation_library
-        library Pathname.new("/foo/bar"),
-                A => ogg({artist: "Alice", album: "This album", tracknumber: 1,
-                          title: "This song", date: 2000, albumartist: "Various artists",
-                          albumdate: 2010}),
-                B => ogg({artist: "Bob", album: "This album", tracknumber: 2,
-                          title: "That song", date: 2001, albumartist: "Various artists",
-                          albumdate: 2010}),
-                C => ogg({artist: "Carol", album: "This album", tracknumber: 3,
-                          title: "Another song", date: 2002, albumartist: "Various artists",
-                          albumdate: 2010})
+        lib, *tracks = make_compilation_library_with_tracks
+        return lib
     end
 
     # Test the check() method on a library representing a compilation.
@@ -374,59 +399,52 @@ class LibraryTest < Minitest::Test
 
     # Test the compute_rename_mapping() method.
     def test_compute_rename_mapping
-        l = make_singles_library
+        l, a, b, c = make_singles_library_with_tracks
         newpath, mapping = l.compute_rename_mapping()
 
         assert_equal nil, newpath
-        assert_equal Hash[A => "Alice - 2000 - This song.ogg",
-                          B => "Bob - 2001 - That song.ogg",
-                          C => "Carol - 2002 - Another song.ogg"], mapping
+        assert_equal Hash[a => "Alice - 2000 - This song.ogg",
+                          b => "Bob - 2001 - That song.ogg",
+                          c => "Carol - 2002 - Another song.ogg"], mapping
 
-        l = make_album_library
+        l, a, b, c = make_album_library_with_tracks
         newpath, mapping = l.compute_rename_mapping()
 
         assert_equal Pathname.new("/foo/Alice - 2000 - This album"), newpath
-        assert_equal Hash[A => "Alice - 2000 - This album - 1 - This song.ogg",
-                          B => "Alice - 2000 - This album - 2 - That song.ogg",
-                          C => "Alice - 2000 - This album - 3 - Another song.ogg"], mapping
+        assert_equal Hash[a => "Alice - 2000 - This album - 1 - This song.ogg",
+                          b => "Alice - 2000 - This album - 2 - That song.ogg",
+                          c => "Alice - 2000 - This album - 3 - Another song.ogg"], mapping
 
-        l = make_bestof_library
+        l, a, b, c = make_bestof_library_with_tracks
         newpath, mapping = l.compute_rename_mapping()
 
         assert_equal Pathname.new("/foo/Alice - 2010 - This album"), newpath
-        assert_equal Hash[A => "Alice - 2010 - This album - 1 - This song - 2000.ogg",
-                          B => "Alice - 2010 - This album - 2 - That song - 2001.ogg",
-                          C => "Alice - 2010 - This album - 3 - Another song - 2002.ogg"], mapping
+        assert_equal Hash[a => "Alice - 2010 - This album - 1 - This song - 2000.ogg",
+                          b => "Alice - 2010 - This album - 2 - That song - 2001.ogg",
+                          c => "Alice - 2010 - This album - 3 - Another song - 2002.ogg"], mapping
 
-        l = make_compilation_library
+        l, a, b, c = make_compilation_library_with_tracks
         newpath, mapping = l.compute_rename_mapping()
 
         assert_equal Pathname.new("/foo/This album - 2010"), newpath
-        assert_equal Hash[A => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
-                          B => "This album - 2010 - 2 - Bob - That song - 2001.ogg",
-                          C => "This album - 2010 - 3 - Carol - Another song - 2002.ogg"], mapping
+        assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
+                          b => "This album - 2010 - 2 - Bob - That song - 2001.ogg",
+                          c => "This album - 2010 - 3 - Carol - Another song - 2002.ogg"], mapping
     end
 
     # Make sure the internal filename mapping don't get broken when renaming.
     def test_auto_rename_consistency
         # Do one without the album mode
-        l = make_singles_library
-        a = l.files[A]
-        b = l.files[B]
-        c = l.files[C]
-
-        refute_nil a
-        refute_nil b
-        refute_nil c
+        l, a, b, c = make_singles_library_with_tracks
 
         l.select %w{1 2}
 
         l.auto_rename
 
         assert_nil l.path
-        assert_same a, l.files[A.dirname + "Alice - 2000 - This song.ogg"]
-        assert_same b, l.files[B.dirname + "Bob - 2001 - That song.ogg"]
-        assert_same c, l.files[C]
+        assert_equal a.path, A.dirname + "Alice - 2000 - This song.ogg"
+        assert_equal b.path, B.dirname + "Bob - 2001 - That song.ogg"
+        assert_equal c.path, C
 
         l.select_all
         a.set_values("DATE", "2003")
@@ -434,29 +452,22 @@ class LibraryTest < Minitest::Test
         l.auto_rename
 
         assert_nil l.path
-        assert_same a, l.files[A.dirname + "Alice - 2003 - This song.ogg"]
-        assert_same b, l.files[B.dirname + "Bob - 2001 - That song.ogg"]
-        assert_same c, l.files[C.dirname + "Carol - 2002 - Another song.ogg"]
+        assert_equal a.path, A.dirname + "Alice - 2003 - This song.ogg"
+        assert_equal b.path, B.dirname + "Bob - 2001 - That song.ogg"
+        assert_equal c.path, C.dirname + "Carol - 2002 - Another song.ogg"
 
 
         # And one with the album mode
-        l = make_compilation_library
-        a = l.files[A]
-        b = l.files[B]
-        c = l.files[C]
-
-        refute_nil a
-        refute_nil b
-        refute_nil c
+        l, a, b, c = make_compilation_library_with_tracks
 
         l.select %w{1 2}
 
         l.auto_rename
 
         assert_equal Pathname.new("/foo/This album - 2010"), l.path
-        assert_same a, l.files[l.path + "This album - 2010 - 1 - Alice - This song - 2000.ogg"]
-        assert_same b, l.files[l.path + "This album - 2010 - 2 - Bob - That song - 2001.ogg"]
-        assert_same c, l.files[l.path + C.basename]
+        assert_equal a.path, l.path + "This album - 2010 - 1 - Alice - This song - 2000.ogg"
+        assert_equal b.path, l.path + "This album - 2010 - 2 - Bob - That song - 2001.ogg"
+        assert_equal c.path, l.path + C.basename
 
         l.select_all
 
@@ -464,11 +475,12 @@ class LibraryTest < Minitest::Test
         l.auto_rename
 
         assert_equal Pathname.new("/foo/That album - 2010"), l.path
-        assert_same a, l.files[l.path + "That album - 2010 - 1 - Alice - This song - 2000.ogg"]
-        assert_same b, l.files[l.path + "That album - 2010 - 2 - Bob - That song - 2001.ogg"]
-        assert_same c, l.files[l.path + "That album - 2010 - 3 - Carol - Another song - 2002.ogg"]
+        assert_equal a.path, l.path + "That album - 2010 - 1 - Alice - This song - 2000.ogg"
+        assert_equal b.path, l.path + "That album - 2010 - 2 - Bob - That song - 2001.ogg"
+        assert_equal c.path, l.path + "That album - 2010 - 3 - Carol - Another song - 2002.ogg"
     end
 
+    # Check the auto_rename method.
     def test_auto_rename
         Dir.mktmpdir { |tmpdir|
             tmpdir = Pathname.new(tmpdir)
@@ -482,7 +494,7 @@ class LibraryTest < Minitest::Test
             containers["b.ogg"].set_values("ARTIST", "Bob").set_values("TITLE", "That song").set_values("DATE", "2001").write(dir + "b.ogg")
 
             # Build the library
-            lib = OggAlbumTagger::Library.new(nil, Hash[containers.map { |p, c| [dir + p, c] }])
+            lib = OggAlbumTagger::Library.new(nil, containers.map { |p, c| c })
 
             lib.auto_rename
 
@@ -509,5 +521,14 @@ class LibraryTest < Minitest::Test
             assert_equal Set["That song"], b["TITLE"]
             assert_equal Set["2001"]     , b["DATE"]
         }
+    end
+
+    # Make sure the selection can be temporarly restricted.
+    def test_with_selection
+        lib = library nil, ogg(A, foo: %w{bar}), ogg(B, baz: %w{qux})
+
+        lib.with_selection(%w{2}) { assert_equal %w{baz}, lib.tags_used }
+
+        lib.with_selection([]) { assert_equal %w{foo baz}, lib.tags_used }
     end
 end

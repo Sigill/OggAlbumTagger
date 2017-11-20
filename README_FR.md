@@ -60,6 +60,8 @@ __`select arg1 [arg2…]`__ : permet de sélectionner un sous-ensemble de fichie
 
 Les sélecteurs à base d'index peuvent être préfixés d'un `+` ou d'un `-` afin d'ajouter ou de retirer des éléments à la sélection actuelle (ex. `-3` ou `+10-20`).
 
+Il est également possible d'appliquer des sélecteurs à une unique commande en préfixant celle-ci (ex. `3-5 show`).
+
 __`show`__ : sans argument, permet de visualiser les tags. `show tag xxx` permet de limiter la visualisation au tag `xxx`.
 
 __`set <tag> value1 [value2…]`__ : tag chaque fichier avec chaque valeur. Les éventuelles valeurs précédentes de ce tag sont supprimées. Si le tag est `metadata_block_picture` (ou bien son alias `picture`), vous devez passer en argument le chemin d'un fichier jpeg ou png et optionnellement une description. Pour l'instant, seules les images de type "front cover" sont supportées.

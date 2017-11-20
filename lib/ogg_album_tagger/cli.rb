@@ -19,6 +19,13 @@ class CLI
         Readline.completion_append_character = " "
     end
 
+    SIMPLE_SELECTOR = /^[+-]?[1-9]\d*$/
+    RANGE_SELECTOR = /^[+-]?[1-9]\d*-[1-9]\d*$/
+
+    def selector?(arg)
+        return arg == 'all' || arg.match(SIMPLE_SELECTOR) || arg.match(RANGE_SELECTOR)
+    end
+
     def autocomplete(buffer, point, input)
         # Extract the context: everything before the word being completed.
         context = buffer.slice(0, point - input.length)
@@ -40,6 +47,10 @@ class CLI
                 return []
             end
         end
+
+        # Remove leading selectors
+        first_not_selector = context_args.find_index { |e| !selector?(e) }
+        context_args.slice!(0, first_not_selector) unless first_not_selector.nil? || first_not_selector == 0
 
         # Keep only suggestions starting with the input.
         sugg = suggestions(context_args, input).grep(/^#{Regexp.escape(input)}/i).map { |v|
@@ -149,15 +160,31 @@ class CLI
         end
     end
 
-    def execute_command(command_line)
+    def parse_command(command_line)
         begin
-            command, *args = Shellwords.shellwords(command_line)
+            arguments = Shellwords.shellwords(command_line)
         rescue ::StandardError => ex
-            puts 'Invalid command.'
-            return
+            raise OggAlbumTagger::ArgumentError, "Invalid command."
         end
 
-        begin
+        selectors = []
+
+        first_not_selector = arguments.find_index { |e| !selector?(e) }
+        unless first_not_selector.nil? || first_not_selector == 0
+            selectors = arguments.slice!(0, first_not_selector)
+        end
+
+        command, *args = arguments
+
+        return selectors, command, args
+    end
+
+    def execute_command(command_line)
+        selectors, command, args = parse_command(command_line)
+
+        return if command.nil?
+
+        @library.with_selection(selectors) {
             case command
             when 'ls' then ls_command()
             when 'select'
@@ -212,9 +239,7 @@ class CLI
             else
                 puts "Unknown command \"#{command}\""
             end
-        rescue OggAlbumTagger::Error => err
-            puts err
-        end
+        }
     end
 end
 
