@@ -131,6 +131,17 @@ class CLI
         end
     end
 
+    def select_command(args)
+        if args.length == 0
+            m = "Usage: select <selector>+\n\n" +
+                "A selector can either be \"all\", a single index or a range (e.g. 3-5).\n" +
+                "Number and range based selectors can be made cumulative by adding a plus or minus sign in front of the selector (ex. \"-1-3\")."
+            raise ArgumentError, m
+        end
+
+        @library.select(args)
+    end
+
     def ls_command
         @library.ls().each do |f|
             puts sprintf("%s %4d: %s", (f[:selected] ? '*' : ' '), f[:position], f[:file])
@@ -162,6 +173,52 @@ class CLI
         raise ArgumentError, m
     end
 
+    def set_command(args)
+        if args.length < 2
+            m = "Usage: set <tag> <value>+"
+            raise ArgumentError, m
+        end
+
+        handle_picture_args(args)
+        @library.set_tag(*args)
+    end
+
+    def add_command(args)
+        if args.length < 2
+            m = "Usage: add <tag> [<value>+]"
+            raise ArgumentError, m
+        end
+
+        handle_picture_args(args)
+        @library.add_tag(*args)
+    end
+
+    def rm_command(args)
+        if args.length < 1
+            m = "Usage: rm <tag> [<value>+]"
+            raise ArgumentError, m
+        end
+
+        @library.rm_tag(*args)
+    end
+
+    def auto_command(args)
+        usage = "Usage: auto tracknumber|rename"
+        if args.length < 1
+            raise ArgumentError, usage
+        end
+
+        case args[0]
+        when 'tracknumber'
+            @library.auto_tracknumber()
+        when 'rename'
+            @library.auto_rename
+            ls_command()
+        else
+            raise ArgumentError, usage
+        end
+    end
+
     def parse_command(command_line)
         begin
             arguments = Shellwords.shellwords(command_line)
@@ -190,50 +247,23 @@ class CLI
             case command
             when 'ls' then ls_command()
             when 'select'
-                if args.length < 1
-                    puts 'You need to specify the files you want to select. Either enter "all", a single number or a range (ex. "3-5").', 'Number and range based selections can be made cumulative by adding a plus or minus sign in front of the selector (ex. "-1-3").'
-                else
-                    @library.select(args)
-                    ls_command()
-                end
+                select_command(args)
+                ls_command()
             when 'move'
                 move_command(args)
                 ls_command()
             when 'show' then show_command(args)
             when 'set'
-                if args.length < 2
-                    puts 'You need to specify the tag to edit and at least one value.'
-                else
-                    handle_picture_args(args)
-                    @library.set_tag(*args)
-                    show_command([args[0]])
-                end
+                set_command(args)
+                show_command([args[0]])
             when 'add'
-                if args.length < 2
-                    puts 'You need to specify the tag to edit and at least one value.'
-                else
-                    handle_picture_args(args)
-                    @library.add_tag(*args)
-                    show_command([args[0]])
-                end
+                add_command(args)
+                show_command([args[0]])
             when 'rm'
-                if args.length < 1
-                    puts 'You need to specify the tag to edit and eventually one or several values.'
-                else
-                    @library.rm_tag(*args)
-                    show_command([args[0]])
-                end
+                rm_command(args)
+                show_command([args[0]])
             when 'auto'
-                if args.length < 1
-                    puts 'You need to specify the auto command you want to execute.'
-                else
-                    case args[0]
-                    when 'tracknumber' then @library.auto_tracknumber()
-                    when 'rename'
-                        @library.auto_rename
-                        ls_command()
-                    end
-                end
+                auto_command(args)
             when 'check'
                 @library.check
                 puts "OK"
