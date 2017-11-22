@@ -50,6 +50,8 @@ __`ls`__: lists the files you have access to. Files are sorted according to thei
 …
 ```
 
+__`move <from_index> <to_index>`__: Move the files located at position `from_index` to the `to_index` position. If the library contain N files, `from_index` must be in the [1; N] range and `to_index` in the [1; N+1] one.
+
 __`select arg1 [arg2…]`__: allow to select a subset of files to work on. The following selectors are available:
 
 * `all`: selects all the files.

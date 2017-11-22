@@ -114,7 +114,6 @@ class LibraryTest < Minitest::Test
     C = (DIR + "c.ogg").freeze
     D = (DIR + "d.ogg").freeze
 
-
     # Test the select() and build_selection() methods.
     def test_selection
         a = ogg(A)
@@ -530,5 +529,40 @@ class LibraryTest < Minitest::Test
         lib.with_selection(%w{2}) { assert_equal %w{baz}, lib.tags_used }
 
         lib.with_selection([]) { assert_equal %w{foo baz}, lib.tags_used }
+    end
+
+    # Test the move method.
+    def test_move
+        lib = library nil, ogg(A, a: %w{foo}), ogg(B, a: %w{bar}), ogg(C, a: %w{baz})
+        assert_order lib, A, B, C
+
+        # Move first after last
+        lib.move(0, 3)
+        assert_order lib, B, C, A
+
+        # Move last before first
+        lib.move(2, 0)
+        assert_order lib, A, B, C
+
+        # Do not move anything
+        lib.move(1, 1)
+        assert_order lib, A, B, C
+
+        # Do not move anything
+        lib.move(1, 2)
+        assert_order lib, A, B, C
+
+        # Make sure invalid indexes are catched
+        e = assert_raises(::IndexError) { lib.move(-1, 0) }
+        assert_equal "Invalid from index -1", e.message
+
+        e = assert_raises(::IndexError) { lib.move(3, 0) }
+        assert_equal "Invalid from index 3", e.message
+
+        e = assert_raises(::IndexError) { lib.move(0, -1) }
+        assert_equal "Invalid to index -1", e.message
+
+        e = assert_raises(::IndexError) { lib.move(0, 4) }
+        assert_equal "Invalid to index 4", e.message
     end
 end

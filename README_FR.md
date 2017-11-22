@@ -52,6 +52,8 @@ __`ls`__ : liste les fichiers en cours d'édition.
 ```
 Les étoiles en début de ligne indiquent les fichiers sélectionnés (se référer à la commande `select` pour plus de détails).
 
+__`move <from_index> <to_index>`__: Déplace le fichier de position `from_index` à la position `to_index`. Si N fichiers ont été charges, alors `from_index` doit être dans l'intervalle [1; N] et `to_index` dans l'intervalle [1; N+1].
+
 __`select arg1 [arg2…]`__ : permet de sélectionner un sous-ensemble de fichiers auxquels les commande d'édition. Vous avez à votre disposition les sélecteurs suivants :
 
 * `all` : sélectionne tous les fichiers

@@ -1,4 +1,16 @@
+require 'minitest/assertions'
+
 require 'ogg_album_tagger/library'
+
+module Minitest::Assertions
+    # Verify that a library is composed a list of files in a specific order.
+    # lib:: The library to test.
+    # exp:: The expected paths
+    def assert_order lib, *exp
+        # exp might contain Pathnames, convert them to string.
+        assert_equal(exp.map(&:to_s), lib.ls().map{ |e| e[:file]})
+    end
+end
 
 class TestingFile < OggAlbumTagger::TagContainer
     attr_accessor :path

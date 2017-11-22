@@ -64,8 +64,8 @@ class CLI
     def suggestions(context, input)
         if context.empty?
             # No args, suggest the supported commands.
-            return %w{ls select show set add rm auto check write help exit quit}
-        elsif %w{ls select check help exit quit}.include?(context[0])
+            return %w{ls select move show set add rm auto check write help exit quit}
+        elsif %w{ls select move check help exit quit}.include?(context[0])
             # These commands don't take any argument or don't need autocomplete.
         elsif context[0] == 'show'
             # The "show" command can be followed by a tag
@@ -147,6 +147,21 @@ class CLI
         end
     end
 
+    def move_command(args)
+        raise ArgumentError if args.length != 2
+
+        # Will raise ::ArgumentError if not integers
+        from = Integer(args[0]) - 1
+        to   = Integer(args[1]) - 1
+
+        @library.move(from, to)
+    rescue ::StandardError
+        m = "Usage: move <from_index> <to_index>\n\n" +
+            "<from_index> must be in the [1; #{@library.size}] range.\n" +
+            "<to_index> must be in the [1; #{@library.size + 1}] range."
+        raise ArgumentError, m
+    end
+
     def parse_command(command_line)
         begin
             arguments = Shellwords.shellwords(command_line)
@@ -181,6 +196,9 @@ class CLI
                     @library.select(args)
                     ls_command()
                 end
+            when 'move'
+                move_command(args)
+                ls_command()
             when 'show' then show_command(args)
             when 'set'
                 if args.length < 2

@@ -26,6 +26,11 @@ class Library
 		@selected_files = @files.slice(0, @files.size).to_set
 	end
 
+	# Return the number of files in this library.
+	def size
+		@files.size
+	end
+
 	# Returns the list of the tags used in the selected files.
 	def tags_used
 		s = Set.new
@@ -196,6 +201,18 @@ class Library
 		ensure
 			@selected_files = previous_selection
 		end
+	end
+
+	def move(from, to)
+		raise ::IndexError, "Invalid from index #{from}" unless (0...@files.size).include?(from)
+		raise ::IndexError, "Invalid to index #{to}"     unless (0..@files.size).include?(to)
+
+		# Moving item N before item N does nothing
+		# Just like moving item N before item N+1
+		return if to == from or to == from + 1
+
+		item = @files.delete_at(from)
+		@files.insert(from < to ? to - 1 : to, item)
 	end
 
 	# Automatically set the TRACKNUMBER tag of the selected files based on their position in the selection.
