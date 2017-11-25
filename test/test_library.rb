@@ -257,9 +257,9 @@ class LibraryTest < Minitest::Test
         lib = library nil, ogg(C), ogg(A), ogg(B)
         lib.select %w{2}
 
-        assert_equal([{file: "/foo/bar/c.ogg", position: 1, selected: false},
-                      {file: "/foo/bar/a.ogg", position: 2, selected: true},
-                      {file: "/foo/bar/b.ogg", position: 3, selected: false}],
+        assert_equal([{file: "/foo/bar/c.ogg", selected: false},
+                      {file: "/foo/bar/a.ogg", selected: true},
+                      {file: "/foo/bar/b.ogg", selected: false}],
                       lib.ls)
     end
 

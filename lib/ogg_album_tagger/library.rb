@@ -116,7 +116,7 @@ class Library
 	# Return a list of the files in the library.
 	def ls
 		@files.each_with_index.map do |file, i|
-			{ file: (@path.nil? ? file.path : file.path.relative_path_from(@path)).to_s, position: i+1, selected: @selected_files.include?(file) }
+			{ file: (@path.nil? ? file.path : file.path.relative_path_from(@path)).to_s, selected: @selected_files.include?(file) }
 		end
 	end
 

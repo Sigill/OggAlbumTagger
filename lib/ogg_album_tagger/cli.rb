@@ -143,9 +143,9 @@ class CLI
     end
 
     def ls_command
-        @library.ls().each do |f|
-            puts sprintf("%s %4d: %s", (f[:selected] ? '*' : ' '), f[:position], f[:file])
-        end
+        @library.ls().each_with_index { |f, i|
+            puts sprintf("%s %4d: %s", (f[:selected] ? '*' : ' '), i + 1, f[:file])
+        }
     end
 
     def handle_picture_args args
