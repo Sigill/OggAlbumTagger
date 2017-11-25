@@ -81,9 +81,13 @@ end
 
 $interpreter.configure_readline
 Readline.completion_proc = ->(input) {
-    $interpreter.autocomplete(Readline.line_buffer, Readline.point, input)
-    # puts input
-    # return []
+    begin
+        $interpreter.autocomplete(Readline.line_buffer, Readline.point, input)
+    rescue OggAlbumTagger::Error => ex
+        # Warn the user of autocompletion issue
+        puts "", ex
+        Readline.refresh_line
+    end
 }
 
 loop do

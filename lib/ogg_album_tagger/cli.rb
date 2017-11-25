@@ -90,12 +90,9 @@ class CLI
                 return @library.tags_used
             else
                 tag = context[1].upcase
-                if tag == 'METADATA_BLOCK_PICTURE'
-                    $stderr.puts
-                    $stderr.puts "Autocompletion is not supported for pictures"
-                    Readline.refresh_line
-                else return @library.tag_summary(tag).values.flatten.uniq
-                end
+                raise ArgumentError, "Autocompletion is not supported for pictures" if tag == 'METADATA_BLOCK_PICTURE'
+
+                return @library.tag_summary(tag).values.flatten.uniq
             end
         elsif context[0] == 'auto'
             if context.length == 1
