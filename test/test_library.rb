@@ -9,30 +9,6 @@ require 'ogg_album_tagger/library'
 
 require 'library_helper'
 
-# Helper method that build a TagContainer object from the specified tags.
-def ogg(path, tags = {})
-    TestingFile.new(path, tags)
-end
-
-# Helper method to build a mocked library.
-def library(dir, *tracks)
-    TestingLibrary.new(dir, tracks)
-end
-
-# Helper function to create a test directory containing blank ogg files.
-# dir:: The directory where the files will be created. It must exists.
-# relpaths:: the relative paths (wrt dir) of the ogg files.
-#
-# Returns a hash mapping the relative paths to the associated TagContainers.
-def make_fs_library(dir, *relpaths)
-    relpaths.map { |relpath|
-        path = dir + relpath
-        FileUtils.cp("test/data/empty.ogg", path.to_s)
-
-        [relpath, OggAlbumTagger::OggFile.new(path)]
-    }.to_h
-end
-
 module Minitest::Assertions
     # Verify that check() does not raise a MetadataError when called on the specified library.
     #
@@ -71,23 +47,23 @@ module Minitest::Assertions
     # - the _DATE_ or _ALBUMDATE_ tag does not represent a valid date.
     def assert_basic_library_checks
         %w{ARTIST TITLE DATE}.each { |t|
-            l = yield.apply(1, %w{1 3}) { |l| l.rm_tag(t) }
-            assert_raises_metadata_error(l, "The #{t} tag must be used once per track.")
+            lib = yield.apply(1, %w{1 3}) { |l| l.rm_tag(t) }
+            assert_raises_metadata_error(lib, "The #{t} tag must be used once per track.")
         }
 
         %w{ARTIST TITLE DATE ALBUM ALBUMDATE ARTISTALBUM TRACKNUMBER DISCNUMBER}.each { |t|
-            l = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "one", "two") }
-            assert_raises_metadata_error(l, "The #{t} tag must not appear more than once per track.")
+            lib = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "one", "two") }
+            assert_raises_metadata_error(lib, "The #{t} tag must not appear more than once per track.")
         }
 
         %w{DISCNUMBER TRACKNUMBER}.each { |t|
-            l = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "foo") }
-            assert_raises_metadata_error(l, "If used, the #{t} tag must have a numeric value.")
+            lib = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "foo") }
+            assert_raises_metadata_error(lib, "If used, the #{t} tag must have a numeric value.")
         }
 
         %w{DATE ALBUMDATE}.each { |t|
-            l = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "20000") }
-            assert_raises_metadata_error(l, "If used, the #{t} tag must be a valid year.")
+            lib = yield.apply(1, %w{1 3}) { |l| l.set_tag(t, "20000") }
+            assert_raises_metadata_error(lib, "If used, the #{t} tag must be a valid year.")
         }
     end
 
@@ -98,11 +74,11 @@ module Minitest::Assertions
     # - the _TRACKNUMBER_ tag is missing.
     # - the _ALBUM_ tag does not have a unique value across the tracks.
     def assert_group_library_checks
-        l = yield.apply(1, %w{1 3}) { |l| l.rm_tag("TRACKNUMBER") }
-        assert_raises_metadata_error(l, "The TRACKNUMBER tag must be used once per track.")
+        lib = yield.apply(1, %w{1 3}) { |l| l.rm_tag("TRACKNUMBER") }
+        assert_raises_metadata_error(lib, "The TRACKNUMBER tag must be used once per track.")
 
-        l = yield.apply(1, %w{1 3}) { |l| l.set_tag("ALBUM", "another") }
-        assert_raises_metadata_error(l, "The ALBUM tag must have a single and unique value among all songs.")
+        lib = yield.apply(1, %w{1 3}) { |l| l.set_tag("ALBUM", "another") }
+        assert_raises_metadata_error(lib, "The ALBUM tag must have a single and unique value among all songs.")
     end
 end
 
@@ -113,6 +89,30 @@ class LibraryTest < Minitest::Test
     B = (DIR + "b.ogg").freeze
     C = (DIR + "c.ogg").freeze
     D = (DIR + "d.ogg").freeze
+
+    # Helper method that build a TagContainer object from the specified tags.
+    def ogg(path, tags = {})
+        TestingFile.new(path, tags)
+    end
+
+    # Helper method to build a mocked library.
+    def library(dir, *tracks)
+        TestingLibrary.new(dir, tracks)
+    end
+
+    # Helper function to create a test directory containing blank ogg files.
+    # dir:: The directory where the files will be created. It must exists.
+    # relpaths:: the relative paths (wrt dir) of the ogg files.
+    #
+    # Returns a hash mapping the relative paths to the associated TagContainers.
+    def make_fs_library(dir, *relpaths)
+        relpaths.map { |relpath|
+            path = dir + relpath
+            FileUtils.cp("test/data/empty.ogg", path.to_s)
+
+            [relpath, OggAlbumTagger::OggFile.new(path)]
+        }.to_h
+    end
 
     # Test the select() and build_selection() methods.
     def test_selection
@@ -282,7 +282,7 @@ class LibraryTest < Minitest::Test
     end
 
     def make_singles_library
-        lib, *tracks = make_singles_library_with_tracks
+        lib, * = make_singles_library_with_tracks
         return lib
     end
 
@@ -306,7 +306,7 @@ class LibraryTest < Minitest::Test
     end
 
     def make_album_library
-        lib, *tracks = make_album_library_with_tracks
+        lib, * = make_album_library_with_tracks
         return lib
     end
 
@@ -318,8 +318,8 @@ class LibraryTest < Minitest::Test
 
         assert_group_library_checks { make_album_library }
 
-        l = make_album_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMARTIST", "Foo") }
-        assert_raises_metadata_error(l, "The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.")
+        lib = make_album_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMARTIST", "Foo") }
+        assert_raises_metadata_error(lib, "The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.")
     end
 
 
@@ -335,7 +335,7 @@ class LibraryTest < Minitest::Test
     end
 
     def make_bestof_library
-        lib, *tracks = make_bestof_library_with_tracks
+        lib, * = make_bestof_library_with_tracks
         return lib
     end
 
@@ -347,14 +347,14 @@ class LibraryTest < Minitest::Test
 
         assert_group_library_checks { make_bestof_library }
 
-        l = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMARTIST", "Foo") }
-        assert_raises_metadata_error(l, "The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.")
+        lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMARTIST", "Foo") }
+        assert_raises_metadata_error(lib, "The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.")
 
-        l = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
-        assert_raises_metadata_error(l, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
 
-        l = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
-        assert_raises_metadata_error(l, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
     end
 
 
@@ -373,7 +373,7 @@ class LibraryTest < Minitest::Test
     end
 
     def make_compilation_library
-        lib, *tracks = make_compilation_library_with_tracks
+        lib, * = make_compilation_library_with_tracks
         return lib
     end
 
@@ -385,14 +385,14 @@ class LibraryTest < Minitest::Test
 
         assert_group_library_checks { make_compilation_library }
 
-        l = make_compilation_library.set_tag("ALBUMARTIST", "Foo").select(%w{1 3})
-        assert_raises_metadata_error(l, "This album seems to be a compilation. The ALBUMARTIST tag should have the value \"Various artists\".")
+        lib = make_compilation_library.set_tag("ALBUMARTIST", "Foo").select(%w{1 3})
+        assert_raises_metadata_error(lib, "This album seems to be a compilation. The ALBUMARTIST tag should have the value \"Various artists\".")
 
-        l = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
-        assert_raises_metadata_error(l, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
 
-        l = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
-        assert_raises_metadata_error(l, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
     end
 
 

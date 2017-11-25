@@ -8,11 +8,6 @@ require 'ogg_album_tagger/cli'
 
 require 'library_helper'
 
-# Helper method that build a TagContainer object from the specified tags.
-def ogg(path, tags = {})
-    TestingFile.new(path, tags)
-end
-
 # Borrowed from ruby sources
 # test/readline/test_readline.rb
 def with_temp_stdio
@@ -112,6 +107,11 @@ class CLITest < Minitest::Test
     C = (DIR + "c.ogg").freeze
     D = (DIR + "d.ogg").freeze
 
+    # Helper method that build a TagContainer object from the specified tags.
+    def ogg(path, tags = {})
+        TestingFile.new(path, tags)
+    end
+
     def setup
         @a = ogg(A, artist: "Alice", album: "This album")
         @b = ogg(B, artist: "Bob", album: "That album", genre: %w{Pop Rock})
@@ -170,7 +170,7 @@ class CLITest < Minitest::Test
         }
     end
 
-    def test_autocomplete_add_set_picture2
+    def test_autocomplete_add_set_picture3
         Dir.mktmpdir { |tmpdir|
             Dir.chdir(tmpdir) {
                 assert_cmd_autocomplete @cli, "set picture missing\t", []

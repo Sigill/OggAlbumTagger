@@ -53,8 +53,7 @@ class OggFile < OggAlbumTagger::TagContainer
                 # Save everything
                 ogg.save
             end
-        rescue Exception => ex
-            #STDERR.puts ex
+        rescue Exception
             raise OggAlbumTagger::ArgumentError, "#{file} cannot be written."
         end
     end

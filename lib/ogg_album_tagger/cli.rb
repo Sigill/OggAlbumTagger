@@ -219,7 +219,7 @@ class CLI
     def parse_command(command_line)
         begin
             arguments = Shellwords.shellwords(command_line)
-        rescue ::StandardError => ex
+        rescue ::StandardError
             raise OggAlbumTagger::ArgumentError, "Invalid command."
         end
 

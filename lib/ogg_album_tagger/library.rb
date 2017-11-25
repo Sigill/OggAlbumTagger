@@ -440,7 +440,7 @@ class Library
 					rename(oldfilepath, newfilepath)
 					file.path = newfilepath
 				end
-			rescue Exception => ex
+			rescue Exception
 				raise OggAlbumTagger::SystemError, "Cannot rename \"#{short_path(oldfilepath)}\" to \"#{short_path(newfilepath)}\"."
 			end
 		end
@@ -461,7 +461,7 @@ class Library
 						file.path = newfilepath
 					}
 				end
-			rescue Exception => ex
+			rescue Exception
 				raise OggAlbumTagger::SystemError, "Cannot rename \"#{oldpath}\" to \"#{newpath}\"."
 			end
 		end
