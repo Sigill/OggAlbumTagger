@@ -148,7 +148,7 @@ class CLI
     def handle_picture_args args
         if %w{METADATA_BLOCK_PICTURE PICTURE}.include? args[0].upcase
             file = args[1]
-            desc = args.length == 2 ? args[1] : ''
+            desc = args.length == 3 ? args[2] : ''
             args.clear
             args << 'METADATA_BLOCK_PICTURE'
             args << OggAlbumTagger::Picture::generate_metadata_block_picture(file, desc)
