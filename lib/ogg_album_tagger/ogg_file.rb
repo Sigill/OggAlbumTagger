@@ -3,6 +3,7 @@ require 'set'
 require 'taglib'
 require 'ogg_album_tagger/exceptions'
 require 'ogg_album_tagger/tag_container'
+require 'ogg_album_tagger/picture'
 
 module OggAlbumTagger
 
@@ -12,18 +13,35 @@ module OggAlbumTagger
 class OggFile < OggAlbumTagger::TagContainer
     attr_accessor :path
 
+    MBP = 'METADATA_BLOCK_PICTURE'
+
     # Initialize a TagContainer from an ogg file.
     def initialize(file)
         begin
             h = Hash.new
 
             TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
-                ogg.tag.field_list_map.each do |tag, values|
-                    h[tag] = Set.new
-                    values.each do |value|
-                        h[tag].add(value.strip)
+                ogg.tag.tap { |tags|
+                    tags.field_list_map.each { |key, values|
+                        h[key] = Set.new
+                        values.each { |value| h[key].add(value.strip) }
+                    }
+
+                    pictures = tags.picture_list
+                    unless pictures.empty?
+                        h[MBP] = Set.new
+                        pictures.each { |pic|
+                            h[MBP].add(Picture.new(pic.data,
+                                                   pic.type,
+                                                   pic.mime_type,
+                                                   pic.width,
+                                                   pic.height,
+                                                   pic.color_depth,
+                                                   pic.num_colors,
+                                                   pic.description))
+                        }
                     end
-                end
+                }
             end
 
             super(h)
@@ -41,13 +59,20 @@ class OggFile < OggAlbumTagger::TagContainer
                 tags = ogg.tag
 
                 # Remove old tags
-                tags.field_list_map.keys.each { |t| tags.remove_field(t) }
+                tags.remove_all_fields
+                tags.remove_all_pictures
 
                 # Set new tags (Taglib will write them sorted)
-                @hash.each do |tag, values|
-                    values.sort.each do |v|
-                        tags.add_field(tag, v, false)
-                    end
+                @hash.each { |tag, values|
+                    next if tag == MBP
+
+                    values.sort.each { |v| tags.add_field(tag, v, false) }
+                }
+
+                if @hash.has_key?(MBP)
+                    @hash[MBP].each { |pic|
+                        tags.add_picture(pic.to_taglib_flac_picture)
+                    }
                 end
 
                 # Save everything

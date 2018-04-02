@@ -401,7 +401,7 @@ class LibraryTest < Minitest::Test
         l, a, b, c = make_singles_library_with_tracks
         newpath, mapping = l.compute_rename_mapping()
 
-        assert_equal nil, newpath
+        assert_nil newpath
         assert_equal Hash[a => "Alice - 2000 - This song.ogg",
                           b => "Bob - 2001 - That song.ogg",
                           c => "Carol - 2002 - Another song.ogg"], mapping

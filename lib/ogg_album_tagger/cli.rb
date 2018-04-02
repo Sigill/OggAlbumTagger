@@ -2,7 +2,7 @@ require 'readline'
 require 'shellwords'
 
 require 'ogg_album_tagger/exceptions'
-require 'ogg_album_tagger/picture'
+require 'taglib'
 
 module OggAlbumTagger
 
@@ -151,7 +151,7 @@ class CLI
             desc = args.length == 3 ? args[2] : ''
             args.clear
             args << 'METADATA_BLOCK_PICTURE'
-            args << OggAlbumTagger::Picture::generate_metadata_block_picture(file, desc)
+            args << OggAlbumTagger::Picture.from_file(file, desc)
         end
     end
 

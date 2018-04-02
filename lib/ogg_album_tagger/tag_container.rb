@@ -26,7 +26,7 @@ class TagContainer
             next if values.empty?
 
             prepare_tag(tag.to_s.upcase)
-            values.each { |value| @hash[tag.to_s.upcase].add(value.to_s) }
+            values.each { |value| @hash[tag.to_s.upcase].add(value) }
         }
     end
 
@@ -54,7 +54,7 @@ class TagContainer
     # Check if the tag is valid, otherwise raise an ArgumentError.
     # Valid tags are composed of any character from " " to "}", excluding "=" and "~".
     def self.valid_tag? tag
-        raise ArgumentError, "Invalid tag." unless tag =~ /^[\x20-\x3C\x3E-\x7D]+$/
+        raise ArgumentError, "Invalid tag." unless TagLib::Ogg::XiphComment::check_key(tag)
     end
 
     # If the specified tag is absent from the container, associate an empty Set to it.
@@ -112,7 +112,7 @@ class TagContainer
 
     # Pretty print an array of values.
     def self.pp_tag values
-        values_str = values.map { |v| v.to_s.length > 64 ? (v.to_s.slice(0, 64) + '...') : v }
+        values_str = values.map { |v| v.to_s.length > 64 ? (v.to_s.slice(0, 64) + '...') : v.to_s }
 
         case values.length
         when 0 then '- (empty)'
