@@ -23,9 +23,9 @@ Gem::Specification.new do |spec|
   spec.executables   = %w{ogg-album-tagger}
   spec.require_paths = ["lib"]
 
-  spec.add_development_dependency "bundler", "~> 1.7"
-  spec.add_development_dependency "rake", "~> 10.0"
-  spec.add_development_dependency "minitest", "~> 5.9"
+  spec.add_development_dependency "bundler", "~> 1.16"
+  spec.add_development_dependency "rake", "~> 12.0"
+  spec.add_development_dependency "minitest", "~> 5.11"
   spec.add_development_dependency "m", "~> 1.5"
 
   spec.add_runtime_dependency "exiftool", ["~> 0.6"]
