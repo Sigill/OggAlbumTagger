@@ -9,6 +9,7 @@ require 'ogg_album_tagger/cli'
 
 require 'readline'
 require 'optparse'
+require 'pathname'
 
 def list_ogg_files dir
     Dir.chdir(dir) do
