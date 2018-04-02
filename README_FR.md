@@ -88,8 +88,8 @@ __`auto rename`__ : renomme les fichiers (ainsi que le dossier de l'album lorsqu
   Dossier : ARTIST - ALBUMDATE - ALBUM
   Fichier ogg : ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE.ogg
 * Compilation
-  Dossier : ALBUM - ALBUMDATE
-  Fichier ogg : ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - DATE - TITLE.ogg
+  Dossier : ALBUM - ALBUMDATE|DATE
+  Fichier ogg : ALBUM - ALBUMDATE|DATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE.ogg
 
 Les tags `DISCNUMBER` et `TRACKNUMBER` sont automatiquement alignés avec des zéros afin de permettre un tri lexicographique des fichiers.
 

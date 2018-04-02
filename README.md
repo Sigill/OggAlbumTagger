@@ -90,8 +90,8 @@ __`auto rename`__: renames the directory and the files based on the tags. The ta
   Directory: ARTIST - ALBUMDATE - ALBUM
   Ogg files: ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE.ogg
 * Compilations
-  Directory: ALBUM - ALBUMDATE
-  Ogg files: ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - DATE - TITLE.ogg
+  Directory: ALBUM - ALBUMDATE|DATE
+  Ogg files: ALBUM - ALBUMDATE|DATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE.ogg
 
 `DISCNUMBER` and `TRACKNUMBER` tags are automatically padded with zeros in order to be of equal length and allow alphabetical sort.
 

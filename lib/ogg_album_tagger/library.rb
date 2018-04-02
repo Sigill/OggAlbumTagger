@@ -286,7 +286,7 @@ class Library
 	# * DATE must be a valid date.
 	# * ALBUM must be uniq.
 	# * ALBUMARTIST should have the value "Various artists" on a compilation.
-	# * ALBUMDATE must be uniq if DATE is not.
+	# * ALBUMDATE must be unique. It is not required if DATE is unique.
 	# * DISCNUMBER must be used at most one time per file.
 	# * TRACKNUMBER and DISCNUMBER must have numerical values.
 	def check
@@ -313,8 +313,14 @@ class Library
 
 		raise OggAlbumTagger::MetadataError, "The ALBUM tag must have a single and unique value among all songs." unless uniq_tag?('ALBUM')
 
-		unless uniq_tag?('DATE')
-			raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag must have a single and uniq value among all songs." unless uniq_tag?('ALBUMDATE')
+		if tag_used?('ALBUMDATE')
+			if uniq_tag?('ALBUMDATE')
+				if uniq_tag?('DATE') && first_value('DATE') == first_value('ALBUMDATE')
+					raise OggAlbumTagger::MetadataError, "The ALBUMDATE is not required since it is unique and identical to the DATE tag."
+				end
+			else
+				raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag must have a single and unique value among all songs."
+			end
 		end
 
 		if @selected_files.size == 1
@@ -347,8 +353,8 @@ class Library
 	# Ogg file:  ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE
 	#
 	# For a compilation, the format is:
-	# Directory: ALBUM - ALBUMDATE
-	# Ogg file:  ALBUM - ALBUMDATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE
+	# Directory: ALBUM - ALBUMDATE|DATE
+	# Ogg file:  ALBUM - ALBUMDATE|DATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE
 	#
 	# Disc and track numbers are padded with zeros.
 
@@ -379,7 +385,7 @@ class Library
 				s += sprintf(tn_format, tags.first('TRACKNUMBER').to_i)
 			end
 
-			album_date = uniq_tag?('DATE') ? first_value('DATE') : first_value('ALBUMDATE')
+			album_date = tag_used?('ALBUMDATE') ? first_value('ALBUMDATE') : (uniq_tag?('DATE') ? first_value('DATE') : first_value('ALBUMDATE'))
 
 			if uniq_tag?('ARTIST')
 				@selected_files.each do |file|

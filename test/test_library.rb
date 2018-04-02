@@ -351,10 +351,10 @@ class LibraryTest < Minitest::Test
         assert_raises_metadata_error(lib, "The ALBUMARTIST is not required since all tracks have the same and unique ARTIST.")
 
         lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
-        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and unique value among all songs.")
 
         lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
-        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and unique value among all songs.")
     end
 
 
@@ -389,10 +389,13 @@ class LibraryTest < Minitest::Test
         assert_raises_metadata_error(lib, "This album seems to be a compilation. The ALBUMARTIST tag should have the value \"Various artists\".")
 
         lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.rm_tag("ALBUMDATE") }
-        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and unique value among all songs.")
 
         lib = make_bestof_library.apply(1, %w{1 3}) { |l| l.set_tag("ALBUMDATE", "2011") }
-        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and uniq value among all songs.")
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and unique value among all songs.")
+
+        lib = make_compilation_library.set_tag("DATE", "2010")
+        assert_raises_metadata_error(lib, "The ALBUMDATE is not required since it is unique and identical to the DATE tag.")
     end
 
 
@@ -429,6 +432,24 @@ class LibraryTest < Minitest::Test
         assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
                           b => "This album - 2010 - 2 - Bob - That song - 2001.ogg",
                           c => "This album - 2010 - 3 - Carol - Another song - 2002.ogg"], mapping
+
+        l, a, b, c = make_compilation_library_with_tracks
+        l.set_tag("DATE", "2000")
+        newpath, mapping = l.compute_rename_mapping()
+
+        assert_equal Pathname.new("/foo/This album - 2010"), newpath
+        assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
+                          b => "This album - 2010 - 2 - Bob - That song - 2000.ogg",
+                          c => "This album - 2010 - 3 - Carol - Another song - 2000.ogg"], mapping
+
+        l, a, b, c = make_compilation_library_with_tracks
+        l.set_tag("DATE", "2010").rm_tag('ALBUMDATE')
+        newpath, mapping = l.compute_rename_mapping()
+
+        assert_equal Pathname.new("/foo/This album - 2010"), newpath
+        assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2010.ogg",
+                          b => "This album - 2010 - 2 - Bob - That song - 2010.ogg",
+                          c => "This album - 2010 - 3 - Carol - Another song - 2010.ogg"], mapping
     end
 
     # Make sure the internal filename mapping don't get broken when renaming.
