@@ -413,11 +413,11 @@ class Library
 				albumdir = sprintf('%s - %s', first_value('ALBUM'), album_date)
 			end
 
-			albumdir = albumdir.gsub(/[\\\/:*?"<>|]/, '')
+			albumdir = albumdir.gsub(/[\\\/:*?"<>|]/, '').gsub(/\s+/, ' ')
 		end
 
 		# TODO Should UTF-8 chars be converted to latin1 in order to have Windows-safe filenames?
-		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '') }
+		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '').gsub(/\s+/, ' ') }
 
 		if mapping.values.uniq.size != @selected_files.size
 			raise OggAlbumTagger::MetadataError, 'Generated filenames are not unique.'
