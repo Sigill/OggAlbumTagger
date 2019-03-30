@@ -319,7 +319,11 @@ class Library
 			end
 
 			if uniq_tag?('DATE') && first_value('DATE') == first_value('ALBUMDATE')
-				raise OggAlbumTagger::MetadataError, "The ALBUMDATE is not required since it is unique and identical to the DATE tag."
+				raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag is not required since it is unique and identical to the DATE tag."
+			end
+		else
+			unless uniq_tag?('DATE')
+				raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag is required."
 			end
 		end
 
