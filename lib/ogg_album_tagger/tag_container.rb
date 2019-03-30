@@ -26,7 +26,7 @@ class TagContainer
             next if values.empty?
 
             prepare_tag(tag.to_s.upcase)
-            values.each { |value| @hash[tag.to_s.upcase].add(value.to_s) }
+            values.each { |value| @hash[tag.to_s.upcase].add(value) }
         }
     end
 
@@ -112,7 +112,10 @@ class TagContainer
 
     # Pretty print an array of values.
     def self.pp_tag values
-        values_str = values.map { |v| v.to_s.length > 64 ? (v.to_s.slice(0, 64) + '...') : v }
+        values_str = values.map { |v|
+            str = v.to_s
+            str.length > 64 ? (str.slice(0, 64) + '...') : str
+        }
 
         case values.length
         when 0 then '- (empty)'

@@ -275,9 +275,9 @@ class LibraryTest < Minitest::Test
 
     # Helper method to generate a library composed of a list of unrelated tracks.
     def make_singles_library_with_tracks
-        a = ogg(A, {artist: "Alice", title: "This song"   , date: 2000})
-        b = ogg(B, {artist: "Bob"  , title: "That song"   , date: 2001})
-        c = ogg(C, {artist: "Carol", title: "Another song", date: 2002})
+        a = ogg(A, {artist: "Alice", title: "This song"   , date: "2000"})
+        b = ogg(B, {artist: "Bob"  , title: "That song"   , date: "2001"})
+        c = ogg(C, {artist: "Carol", title: "Another song", date: "2002"})
         return library(nil, a, b, c), a, b, c
     end
 
@@ -297,11 +297,11 @@ class LibraryTest < Minitest::Test
     # Helper method to generate a library representing an album.
     def make_album_library_with_tracks
         a = ogg(A, {artist: "Alice", tracknumber: 1, title: "This song",
-                    album: "This album", date: 2000})
+                    album: "This album", date: "2000"})
         b = ogg(B, {artist: "Alice", tracknumber: 2, title: "That song",
-                    album: "This album", date: 2000})
+                    album: "This album", date: "2000"})
         c = ogg(C, {artist: "Alice", tracknumber: 3, title: "Another song",
-                    album: "This album", date: 2000})
+                    album: "This album", date: "2000"})
         return library(DIR, a, b, c), a, b, c
     end
 
@@ -326,11 +326,11 @@ class LibraryTest < Minitest::Test
     # Helper method to generate a library representing a best-of.
     def make_bestof_library_with_tracks
         a = ogg(A, {artist: "Alice", tracknumber: 1, title: "This song",
-                    date: 2000, album: "This album", albumdate: 2010})
+                    date: "2000", album: "This album", albumdate: "2010"})
         b = ogg(B, {artist: "Alice", tracknumber: 2, title: "That song",
-                    date: 2001, album: "This album", albumdate: 2010})
+                    date: "2001", album: "This album", albumdate: "2010"})
         c = ogg(C, {artist: "Alice", tracknumber: 3, title: "Another song",
-                    date: 2002, album: "This album", albumdate: 2010})
+                    date: "2002", album: "This album", albumdate: "2010"})
         return library(DIR, a, b, c), a, b, c
     end
 
@@ -361,14 +361,14 @@ class LibraryTest < Minitest::Test
     # Helper method to generate a library representing a compilation.
     def make_compilation_library_with_tracks
         a = ogg(A, {artist: "Alice", album: "This album", tracknumber: 1,
-                    title: "This song", date: 2000, albumartist: "Various artists",
-                    albumdate: 2010})
+                    title: "This song", date: "2000", albumartist: "Various artists",
+                    albumdate: "2010"})
         b = ogg(B, {artist: "Bob", album: "This album", tracknumber: 2,
-                    title: "That song", date: 2001, albumartist: "Various artists",
-                    albumdate: 2010})
+                    title: "That song", date: "2001", albumartist: "Various artists",
+                    albumdate: "2010"})
         c = ogg(C, {artist: "Carol", album: "This album", tracknumber: 3,
-                    title: "Another song", date: 2002, albumartist: "Various artists",
-                    albumdate: 2010})
+                    title: "Another song", date: "2002", albumartist: "Various artists",
+                    albumdate: "2010"})
         return library(DIR, a, b, c), a, b, c
     end
 
