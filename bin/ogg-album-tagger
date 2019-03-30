@@ -73,7 +73,7 @@ else
 
     begin
         containers = files.map { |f| OggAlbumTagger::OggFile.new(f) }
-        $library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]) : nil, containers)
+        $library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]).cleanpath : nil, containers)
         $interpreter = OggAlbumTagger::CLI.new($library)
     rescue OggAlbumTagger::Error => ex
         abort ex.message

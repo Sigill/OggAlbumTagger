@@ -314,12 +314,12 @@ class Library
 		raise OggAlbumTagger::MetadataError, "The ALBUM tag must have a single and unique value among all songs." unless uniq_tag?('ALBUM')
 
 		if tag_used?('ALBUMDATE')
-			if uniq_tag?('ALBUMDATE')
-				if uniq_tag?('DATE') && first_value('DATE') == first_value('ALBUMDATE')
-					raise OggAlbumTagger::MetadataError, "The ALBUMDATE is not required since it is unique and identical to the DATE tag."
-				end
-			else
+			unless uniq_tag?('ALBUMDATE')
 				raise OggAlbumTagger::MetadataError, "The ALBUMDATE tag must have a single and unique value among all songs."
+			end
+
+			if uniq_tag?('DATE') && first_value('DATE') == first_value('ALBUMDATE')
+				raise OggAlbumTagger::MetadataError, "The ALBUMDATE is not required since it is unique and identical to the DATE tag."
 			end
 		end
 
@@ -385,7 +385,7 @@ class Library
 				s += sprintf(tn_format, tags.first('TRACKNUMBER').to_i)
 			end
 
-			album_date = tag_used?('ALBUMDATE') ? first_value('ALBUMDATE') : (uniq_tag?('DATE') ? first_value('DATE') : first_value('ALBUMDATE'))
+			album_date = tag_used?('ALBUMDATE') ? first_value('ALBUMDATE') : first_value('DATE')
 
 			if uniq_tag?('ARTIST')
 				@selected_files.each do |file|
@@ -423,7 +423,7 @@ class Library
 			raise OggAlbumTagger::MetadataError, 'Generated filenames are not unique.'
 		end
 
-		newpath = @path.nil? ? nil : (@path.dirname + albumdir)
+		newpath = @path.nil? ? nil : @path.dirname.join(albumdir).cleanpath
 
 		return newpath, mapping
 	end
@@ -439,7 +439,7 @@ class Library
 		Set.new(@selected_files).each do |file|
 			begin
 				oldfilepath = file.path
-				newfilepath = (@path.nil? ? oldfilepath.dirname : @path) + mapping[file]
+				newfilepath = (@path.nil? ? oldfilepath.dirname : @path).join(mapping[file]).cleanpath
 
 				# Don't rename anything if there's no change.
 				if oldfilepath != newfilepath
