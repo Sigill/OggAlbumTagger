@@ -104,12 +104,20 @@ class Library
 		self
 	end
 
-	# Remove the specified values from the selected files.
+	# Remove the specified values from the selected files.
 	#
 	# If no value is specified, the tag will be removed.
 	def rm_tag(tag, *values)
 		tag.upcase!
 		@selected_files.each { |file| file.rm_values(tag, *values) }
+		self
+	end
+
+    # Rename a tag.
+	def mv_tag(from_tag, to_tag)
+		from_tag.upcase!
+		to_tag.upcase!
+		@selected_files.each { |file| file.mv_tag(from_tag, to_tag) }
 		self
 	end
 
@@ -417,11 +425,11 @@ class Library
 				albumdir = sprintf('%s - %s', first_value('ALBUM'), album_date)
 			end
 
-			albumdir = albumdir.gsub(/[\\\/:*?"<>|]/, '').gsub(/\s+/, ' ')
+			albumdir = albumdir.gsub(/[\\\/:*?"<>|]/, ' ').gsub(/\s+/, ' ')
 		end
 
 		# TODO Should UTF-8 chars be converted to latin1 in order to have Windows-safe filenames?
-		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, '').gsub(/\s+/, ' ') }
+		mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, ' ').gsub(/\s+/, ' ') }
 
 		if mapping.values.uniq.size != @selected_files.size
 			raise OggAlbumTagger::MetadataError, 'Generated filenames are not unique.'

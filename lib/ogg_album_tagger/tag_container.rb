@@ -100,6 +100,17 @@ class TagContainer
         self
     end
 
+    # Rename a tag.
+    def mv_tag(from_tag, to_tag)
+        TagContainer::valid_tag? from_tag
+        TagContainer::valid_tag? to_tag
+
+        @hash[to_tag.upcase] = @hash[from_tag.upcase]
+        @hash.delete(from_tag.upcase)
+
+        self
+    end
+
     # Returns the list of present tags.
     def tags
         @hash.keys

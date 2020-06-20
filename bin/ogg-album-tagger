@@ -12,12 +12,10 @@ require 'optparse'
 require 'pathname'
 
 def list_ogg_files dir
-    Dir.chdir(dir) do
-        return Dir.glob("**/*.ogg").sort.map { |f| Pathname.new(dir).join(f) }
-    end
+    return Dir.glob("**/*.ogg", base: dir).map { |f| Pathname.new(dir).join(f) }
 end
 
-options = {album: false}
+options = {album: false, sort: :path}
 option_parser = OptionParser.new do |opts|
     executable_name = File.basename($PROGRAM_NAME)
     opts.banner = "Interactive edition of ogg tags with album/compilation support.\n" +
@@ -27,6 +25,10 @@ option_parser = OptionParser.new do |opts|
 
     opts.on("-a", "--album", "Album mode: treat a single directory as an album.") do
         options[:album] = true
+    end
+
+    opts.on("-sORDER", "--sort=ORDER", [:path, :mtime, :tracknumber], "Sort files.") do |v|
+        options[:sort] = v
     end
 
     opts.on("-v", "--version", "Display version information and exit.") do
@@ -73,6 +75,20 @@ else
 
     begin
         containers = files.map { |f| OggAlbumTagger::OggFile.new(f) }
+    rescue OggAlbumTagger::Error => ex
+        abort ex.message
+    end
+
+    case options[:sort]
+    when :path
+        containers.sort_by! { |e| e.path }
+    when :mtime
+        containers.sort_by! { |e| File.mtime(e.path) }
+    when :tracknumber
+        containers.sort_by! { |e| e['TRACKNUMBER'] }
+    end
+
+    begin
         $library = OggAlbumTagger::Library.new(options[:album] ? Pathname.new(ARGV[0]).cleanpath : nil, containers)
         $interpreter = OggAlbumTagger::CLI.new($library)
     rescue OggAlbumTagger::Error => ex

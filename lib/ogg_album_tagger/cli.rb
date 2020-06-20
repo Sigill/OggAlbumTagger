@@ -64,7 +64,7 @@ class CLI
     def suggestions(context, input)
         if context.empty?
             # No args, suggest the supported commands.
-            return %w{ls select move show set add rm auto check write help exit quit}
+            return %w{ls select move show set add rm mv auto check write help exit quit}
         elsif %w{ls select move check help exit quit}.include?(context[0])
             # These commands don't take any argument or don't need autocomplete.
         elsif context[0] == 'show'
@@ -93,6 +93,10 @@ class CLI
                 raise ArgumentError, "Autocompletion is not supported for pictures" if tag == 'METADATA_BLOCK_PICTURE'
 
                 return @library.tag_summary(tag).values.flatten.uniq
+            end
+        elsif context[0] == 'mv'
+            if context.size == 1
+                return @library.tags_used
             end
         elsif context[0] == 'auto'
             if context.length == 1
@@ -199,6 +203,15 @@ class CLI
         @library.rm_tag(*args)
     end
 
+    def mv_command(args)
+      if args.length != 2
+            m = "Usage: mv <tag> <new_tag>"
+            raise ArgumentError, m
+        end
+
+        @library.mv_tag(*args)
+    end
+
     def auto_command(args)
         usage = "Usage: auto tracknumber|rename"
         if args.length < 1
@@ -259,6 +272,9 @@ class CLI
             when 'rm'
                 rm_command(args)
                 show_command([args[0]])
+            when 'mv'
+                mv_command(args)
+                show_command([args[1]])
             when 'auto'
                 auto_command(args)
             when 'check'

@@ -64,6 +64,8 @@ Multiple selectors can be specified at once. Order is important.
 
 Selectors can also be applied to a single command by prefixing the command with them, e.g. `3-5 show`.
 
+__`move <from> <to>`__: move track from `from` position to `to` position.
+
 __`show`__: without argument, displays the tags of the selected files. Tags are sorted alphabetically, except for the `metadata_block_picture` which is listed last. The command can be restricted to a single tag xxx by using the `show xxx` command.
 
 __`set <tag> value1 [value2…]`__: tags each selected files with the specified tag and all specified values. If the tag does not exist, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
@@ -73,6 +75,8 @@ If the tag is `metadata_block_picture` (also aliased as `picture`), you have to 
 __`add <tag> value1 [value2…]`__: like `set`, but previous values are not discarded.
 
 __`rm <tag> [value1…]`__: removes the specified values of the specified tag for all selected files. If no value is specified, the tag is deleted.
+
+__`mv <tag> <newtag>`__: renames `tag` to `newtag`. Previous values of `newtag` are overwritten.
 
 __`check`__: verify that you follow good tagging practices.
 

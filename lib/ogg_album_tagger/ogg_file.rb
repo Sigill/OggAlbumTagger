@@ -33,7 +33,7 @@ class OggFile < OggAlbumTagger::TagContainer
                                 width = pic.width
                                 height = pic.height
 
-                                # Dimensions are usually not set. Get them another way.
+                                # Dimensions are usually not set. Get them another way.
                                 if width == 0 or height == 0
                                     img = ImageSize.new(pic.data)
                                     width = img.width
