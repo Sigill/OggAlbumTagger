@@ -12,6 +12,7 @@ class CLI
 
     def initialize(library)
         @library = library
+        @options = {}
     end
 
     def configure_readline
@@ -64,7 +65,7 @@ class CLI
     def suggestions(context, input)
         if context.empty?
             # No args, suggest the supported commands.
-            return %w{ls select move show set add rm mv auto check write help exit quit}
+            return %w{ls select move show set add rm mv let try auto check write help exit quit}
         elsif %w{ls select move check help exit quit}.include?(context[0])
             # These commands don't take any argument or don't need autocomplete.
         elsif context[0] == 'show'
@@ -101,6 +102,14 @@ class CLI
         elsif context[0] == 'auto'
             if context.length == 1
                 return %w{tracknumber rename}
+            end
+        elsif context[0] == 'try'
+            if context.length == 1
+                return %w{rename}
+            end
+        elsif context[0] == 'let'
+            if context.length == 1
+              return %w{dir.fields file.fields}
             end
         end
 
@@ -222,11 +231,34 @@ class CLI
         when 'tracknumber'
             @library.auto_tracknumber()
         when 'rename'
-            @library.auto_rename
+            @library.auto_rename(@options['dir.fields'], @options['file.fields'])
             ls_command()
         else
             raise ArgumentError, usage
         end
+    end
+
+    def try_command(args)
+        usage = "Usage: try rename"
+        if args.length < 1
+            raise ArgumentError, usage
+        end
+
+        case args[0]
+        when 'rename'
+            @library.try_rename(@options['dir.fields'], @options['file.fields'])
+        else
+            raise ArgumentError, usage
+        end
+    end
+
+    def let_command(opt, *values)
+        usage = "Usage: let option values..."
+        if values.length < 1
+            raise ArgumentError, usage
+        end
+
+        @options[opt] = values
     end
 
     def parse_command(command_line)
@@ -275,6 +307,10 @@ class CLI
             when 'mv'
                 mv_command(args)
                 show_command([args[1]])
+            when 'try'
+                try_command(args)
+            when 'let'
+                let_command(*args)
             when 'auto'
                 auto_command(args)
             when 'check'

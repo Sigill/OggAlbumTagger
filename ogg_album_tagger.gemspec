@@ -32,4 +32,5 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "filesize", ["~> 0.1"]
   spec.add_runtime_dependency "image_size", ["~> 2.0"]
   spec.add_runtime_dependency "taglib-ruby", ["~> 0.7"]
+  spec.add_runtime_dependency "colorize", ["~> 0.8.1"]
 end
