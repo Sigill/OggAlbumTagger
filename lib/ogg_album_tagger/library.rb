@@ -437,12 +437,12 @@ class Library
         @selected_files.each { |file|
             fields = {
                 'artist' => file.first('ARTIST'),
-                'album' => file.first('ALBUM'),
                 'title' => file.first('TITLE'),
                 'date' => file.first('DATE')
             }
 
             unless @path.nil?
+                fields['album'] = file.first('ALBUM')
                 fields['index'] = index_formatter.call(file)
                 fields['albumdate'] = albumdate
             end

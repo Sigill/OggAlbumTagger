@@ -395,22 +395,24 @@ class LibraryTest < Minitest::Test
         assert_raises_metadata_error(lib, "The ALBUMDATE tag must have a single and unique value among all songs.")
 
         lib = make_compilation_library.set_tag("DATE", "2010")
-        assert_raises_metadata_error(lib, "The ALBUMDATE is not required since it is unique and identical to the DATE tag.")
+        assert_raises_metadata_error(lib, "The ALBUMDATE tag is not required since it is unique and identical to the DATE tag.")
     end
 
 
     # Test the compute_rename_mapping() method.
     def test_compute_rename_mapping
         l, a, b, c = make_singles_library_with_tracks
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
-        assert_equal nil, newpath
+        assert_nil newpath
         assert_equal Hash[a => "Alice - 2000 - This song.ogg",
                           b => "Bob - 2001 - That song.ogg",
                           c => "Carol - 2002 - Another song.ogg"], mapping
 
         l, a, b, c = make_album_library_with_tracks
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
         assert_equal Pathname.new("/foo/Alice - 2000 - This album"), newpath
         assert_equal Hash[a => "Alice - 2000 - This album - 1 - This song.ogg",
@@ -418,7 +420,8 @@ class LibraryTest < Minitest::Test
                           c => "Alice - 2000 - This album - 3 - Another song.ogg"], mapping
 
         l, a, b, c = make_bestof_library_with_tracks
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
         assert_equal Pathname.new("/foo/Alice - 2010 - This album"), newpath
         assert_equal Hash[a => "Alice - 2010 - This album - 1 - This song - 2000.ogg",
@@ -426,7 +429,8 @@ class LibraryTest < Minitest::Test
                           c => "Alice - 2010 - This album - 3 - Another song - 2002.ogg"], mapping
 
         l, a, b, c = make_compilation_library_with_tracks
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
         assert_equal Pathname.new("/foo/This album - 2010"), newpath
         assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
@@ -435,7 +439,8 @@ class LibraryTest < Minitest::Test
 
         l, a, b, c = make_compilation_library_with_tracks
         l.set_tag("DATE", "2000")
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
         assert_equal Pathname.new("/foo/This album - 2010"), newpath
         assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2000.ogg",
@@ -444,7 +449,8 @@ class LibraryTest < Minitest::Test
 
         l, a, b, c = make_compilation_library_with_tracks
         l.set_tag("DATE", "2010").rm_tag('ALBUMDATE')
-        newpath, mapping = l.compute_rename_mapping()
+        dir_fields, file_fields = l.compute_rename_fields()
+        newpath, mapping = l.compute_rename_mapping(dir_fields, file_fields)
 
         assert_equal Pathname.new("/foo/This album - 2010"), newpath
         assert_equal Hash[a => "This album - 2010 - 1 - Alice - This song - 2010.ogg",
@@ -459,7 +465,7 @@ class LibraryTest < Minitest::Test
 
         l.select %w{1 2}
 
-        l.auto_rename
+        l.auto_rename(nil, nil)
 
         assert_nil l.path
         assert_equal a.path, A.dirname + "Alice - 2000 - This song.ogg"
@@ -469,7 +475,7 @@ class LibraryTest < Minitest::Test
         l.select_all
         a.set_values("DATE", "2003")
 
-        l.auto_rename
+        l.auto_rename(nil, nil)
 
         assert_nil l.path
         assert_equal a.path, A.dirname + "Alice - 2003 - This song.ogg"
@@ -482,7 +488,7 @@ class LibraryTest < Minitest::Test
 
         l.select %w{1 2}
 
-        l.auto_rename
+        l.auto_rename(nil, nil)
 
         assert_equal Pathname.new("/foo/This album - 2010"), l.path
         assert_equal a.path, l.path + "This album - 2010 - 1 - Alice - This song - 2000.ogg"
@@ -492,7 +498,7 @@ class LibraryTest < Minitest::Test
         l.select_all
 
         l.set_tag("ALBUM", "That album")
-        l.auto_rename
+        l.auto_rename(nil, nil)
 
         assert_equal Pathname.new("/foo/That album - 2010"), l.path
         assert_equal a.path, l.path + "That album - 2010 - 1 - Alice - This song - 2000.ogg"
@@ -516,7 +522,7 @@ class LibraryTest < Minitest::Test
             # Build the library
             lib = OggAlbumTagger::Library.new(nil, containers.map { |p, c| c })
 
-            lib.auto_rename
+            lib.auto_rename(nil, nil)
 
             # Make sure we find the expected filenames.
             assert_equal [dir], tmpdir.children

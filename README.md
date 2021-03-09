@@ -18,7 +18,7 @@ Therefore, I wrote OggAlbumTagger. It is designed to enforce some good tagging p
 
 ## Usage
 
-```
+```sh
 $ ogg-album-tagger [options] files|directories
 Options:
     -a, --album    Album mode, treat a single directory as an album.
@@ -42,7 +42,7 @@ The album mode (album is used here in a broad sense, we will distinguish album, 
 
 __`ls`__: lists the files you have access to. Files are sorted according to their filename and are indexed by their position in the list. The star at the beginning of a line indicates that the file is selected (see the `select` command for more details).
 
-```
+```sh
 > ls
 *    1: Queen - 01 - Bohemian Rapsody.ogg
 *    2: Queen - 02 - Another One Bites The Dust.ogg
@@ -70,7 +70,7 @@ __`show`__: without argument, displays the tags of the selected files. Tags are 
 
 __`set <tag> value1 [value2…]`__: tags each selected files with the specified tag and all specified values. If the tag does not exist, it is created. If it already exists, all previous values are discarded before adding the new ones. Duplicated values are discarded.
 
-If the tag is `metadata_block_picture` (also aliased as `picture`), you have to provide the path to a jpeg or png file (autocomplete also works here) and optionally a description of the picture. OggAlbumTagger currently only supports the "front cover" type (see http://xiph.org/flac/format.html#metadata_block_picture).
+If the tag is `metadata_block_picture` (also aliased as `picture`), you have to provide the path to a jpeg or png file (autocomplete also works here) and optionally a description of the picture. OggAlbumTagger currently only supports the "front cover" type (see <http://xiph.org/flac/format.html#metadata_block_picture>).
 
 __`add <tag> value1 [value2…]`__: like `set`, but previous values are not discarded.
 
@@ -103,6 +103,13 @@ Those characters are not authorized in file names: `\/:*?"<>|`. They will be rem
 
 In album mode, all ogg files will be moved to the root of the album.
 
+__`try rename`__: shows how files will be renamed.
+
+__`let`__: overrides configuration options.
+
+* `dir.fields`: set the fields used to generate the directory name.
+* `file.fields`: set the fields used to generate track names.
+
 __`write`__: writes the tags in the files.
 
 __`quit`__ or __`exit`__: discards all modifications and closes OggAlbumTagger.
@@ -112,12 +119,11 @@ __`quit`__ or __`exit`__: discards all modifications and closes OggAlbumTagger.
 First, you need to install:
 
 * The `exiftool` tool.
-* The `libtag` (also called `taglib` on some systems) library and its development package.
-* The ruby development package (generally called `ruby-dev`).
+* A `python3` interpreter with the `mutagen` package installed.
 
-For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl libtag1-dev ruby-dev` from your terminal.
+For example, on Debian/Ubuntu systems, run `apt-get install libimage-exiftool-perl python3 python3-mutagen` from your terminal.
 
-Then, run `gem install ogg_album_tagger`. It will automatically build and install the required Ruby dependencies.
+Then, run `gem install ogg_album_tagger`. It will automatically install the required Ruby dependencies.
 
 ## How to hack/contribute
 

@@ -213,7 +213,7 @@ class CLI
     end
 
     def mv_command(args)
-      if args.length != 2
+        if args.length != 2
             m = "Usage: mv <tag> <new_tag>"
             raise ArgumentError, m
         end

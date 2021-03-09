@@ -2,8 +2,6 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 export BUNDLE_GEMFILE="$DIR/Gemfile"
-#export LD_LIBRARY_PATH=$DIR/taglib-1.9.1/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$DIR/taglib-1.12/lib:$LD_LIBRARY_PATH
 
 bundle exec ogg-album-tagger "$@"
 #bundle exec irb "$@"

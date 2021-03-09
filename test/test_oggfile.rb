@@ -55,9 +55,9 @@ class OggFileTest < Minitest::Test
     end
 
     LENA = OggAlbumTagger::Picture.new(IO.binread('test/data/lena.jpg'),
-                                       TagLib::FLAC::Picture::FrontCover,
+                                       3, # front
+                                       'test/data/lena.jpg',
                                        'image/jpeg',
                                        64, 64,
-                                       24, 0,
-                                       'test/data/lena.jpg')
+                                       24)
 end

@@ -123,7 +123,7 @@ class CLITest < Minitest::Test
     end
 
     def test_autocomplete_no_command
-        assert_cmd_autocomplete @cli, "\t", %w{ls select move show set add rm auto check write help exit quit}
+        assert_cmd_autocomplete @cli, "\t", %w{ls select move show set add rm mv let try auto check write help exit quit}
     end
 
     def test_autocomplete_partial_command

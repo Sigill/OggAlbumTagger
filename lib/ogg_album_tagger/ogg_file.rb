@@ -1,13 +1,17 @@
 require 'shellwords'
 require 'set'
-require 'taglib'
 require 'ogg_album_tagger/exceptions'
 require 'ogg_album_tagger/tag_container'
 require 'ogg_album_tagger/picture'
 require 'base64'
 require 'image_size'
+require 'open3'
+require 'json'
+require 'tempfile'
 
 module OggAlbumTagger
+
+OGG_JSON_SCRIPT = File.join(File.dirname(__FILE__), "../../bin/ogg-json.py")
 
 # Store the tags of an ogg track.
 #
@@ -22,43 +26,28 @@ class OggFile < OggAlbumTagger::TagContainer
         begin
             h = Hash.new
 
-            TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
-                ogg.tag.field_list_map.each do |tag, values|
-
-                    h[tag] = Set.new
-                    values.each do |value|
-                        if tag.upcase == MBP
-                            pic = TagLib::FLAC::Picture::new
-                            if (pic.parse(Base64.strict_decode64(value)))
-                                width = pic.width
-                                height = pic.height
-
-                                # Dimensions are usually not set. Get them another way.
-                                if width == 0 or height == 0
-                                    img = ImageSize.new(pic.data)
-                                    width = img.width
-                                    height = img.height
-                                end
-
-                                h[MBP].add(Picture.new(pic.data,
-                                                       pic.type,
-                                                       pic.mime_type,
-                                                       width,
-                                                       height,
-                                                       pic.color_depth,
-                                                       pic.num_colors,
-                                                       pic.description))
-                            end
-                        else
-                            h[tag].add(value.strip)
-                        end
-                    end
-                end
+            stdout_str, stderr_str, status = Open3.capture3('python3', OGG_JSON_SCRIPT, '-l', file.to_s)
+            if status != 0 then
+                raise StandardError.new("Unable to parse #{file}: #{stderr_str.strip()}")
             end
+
+            tags = JSON.parse(stdout_str)
+
+            tags.each { |tag, values|
+                h[tag] = Set.new
+                if tag.upcase == MBP then
+                    values.each { |v|
+                        pic = Picture.new(Base64.strict_decode64(v['data']), v['type'], v['desc'], v['mime'], v['width'], v['height'], v['depth'])
+                        h[tag].add(pic)
+                    }
+                else
+                    values.each { |v| h[tag].add(v.strip) }
+                end
+            }
 
             super(h)
             @path = file
-        rescue Exception => ex
+        rescue => ex
             STDERR.puts ex
             raise OggAlbumTagger::ArgumentError, "#{file} does not seems to be a valid ogg file."
         end
@@ -67,27 +56,30 @@ class OggFile < OggAlbumTagger::TagContainer
     # Write the tags in the specified file.
     def write(file)
         begin
-            TagLib::Ogg::Vorbis::File.open(file.to_s) do |ogg|
-                tags = ogg.tag
-
-                # Remove old tags
-                tags.field_list_map.keys.each { |t| tags.remove_field(t) }
-
-                # Set new tags (Taglib will write them sorted)
-                @hash.each do |tag, values|
-                    values.sort.each do |v|
-                        if tag == MBP
-                            tags.add_field(tag, v.to_mbp, false)
-                        else
-                            tags.add_field(tag, v, false)
-                        end
-                    end
+            data = {}
+            @hash.each { |tag, values|
+                if tag == MBP
+                    data[tag] = values.to_a.map { |v| v.to_h }
+                else
+                    data[tag] = values.to_a
                 end
+            }
 
-                # Save everything
-                ogg.save
-            end
-        rescue Exception
+            # File.open(file.to_s + '.json', 'w:UTF-8') { |io|
+            #     io.write(JSON.pretty_generate(data))
+            # }
+
+            Tempfile.create(['ogg', '.json'], Dir.tmpdir, encoding: 'UTF-8') { |json|
+                json << JSON.pretty_generate(data)
+                json.close
+
+                stdout_str, stderr_str, status = Open3.capture3('python3', OGG_JSON_SCRIPT, '-w', json.path.to_s, file.to_s)
+                if status != 0 then
+                    raise StandardError.new("Unable to write tags to #{file}: #{stderr_str.strip()}")
+                end
+            }
+        rescue => ex
+            STDERR.puts ex
             raise OggAlbumTagger::ArgumentError, "#{file} cannot be written."
         end
     end
