@@ -8,7 +8,7 @@ require 'colorize'
 
 module OggAlbumTagger
 
-# A Library is just a hash associating each ogg file to a TagContainer.
+# A Library is just a hash associating each ogg file to a TagContainer.
 # A subset of file can be selected in order to be tagged.
 class Library
     attr_reader :path
@@ -32,7 +32,7 @@ class Library
         @files.size
     end
 
-    # Returns the list of the tags used in the selected files.
+    # Returns the list of the tags used in the selected files.
     def tags_used
         s = Set.new
         @selected_files.each do |file|
@@ -429,6 +429,9 @@ class Library
         newpath = nil
         mapping = {}
 
+        # TODO Should UTF-8 chars be converted to latin1 in order to have Windows-safe filenames?
+        cleanup_for_filename = Proc.new { |v| v.gsub(/[\\\/:*?"<>|]/, ' ').gsub(/\s+/, ' ').strip() }
+
         unless @path.nil?
             index_formatter = get_index_formatter()
             albumdate = tag_used?('ALBUMDATE') ? first_value('ALBUMDATE') : first_value('DATE')
@@ -447,11 +450,8 @@ class Library
                 fields['albumdate'] = albumdate
             end
 
-            mapping[file] = file_fields.map { |e| fields[e] }.join(' - ') + '.ogg'
+            mapping[file] = file_fields.map { |e| cleanup_for_filename.call(fields[e]) }.join(' - ') + '.ogg'
         }
-
-        # TODO Should UTF-8 chars be converted to latin1 in order to have Windows-safe filenames?
-        mapping.each { |k, v| mapping[k] = v.gsub(/[\\\/:*?"<>|]/, ' ').gsub(/\s+/, ' ') }
 
         unless @path.nil?
           fields = {
@@ -459,8 +459,7 @@ class Library
               'album' => first_value('ALBUM'),
               'albumdate' => albumdate
           }
-          albumdir = dir_fields.map { |e| fields[e] }.join(' - ')
-          albumdir = albumdir.gsub(/[\\\/:*?"<>|]/, ' ').gsub(/\s+/, ' ')
+          albumdir = dir_fields.map { |e| cleanup_for_filename.call(fields[e]) }.join(' - ')
           newpath = @path.dirname.join(albumdir).cleanpath
         end
 
