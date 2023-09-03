@@ -363,15 +363,11 @@ class Library
     #
     # For an album, the format is:
     # Directory: ARTIST - DATE - ALBUM
-    # Ogg file:  ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE
-    #
-    # For a single-artist compilation (an album where tracks have different dates), the format is:
-    # Directory: ARTIST - ALBUMDATE - ALBUM
-    # Ogg file:  ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE
+    # Ogg file:  [DISCNUMBER.]TRACKNUMBER - TITLE
     #
     # For a compilation, the format is:
     # Directory: ALBUM - ALBUMDATE|DATE
-    # Ogg file:  ALBUM - ALBUMDATE|DATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE
+    # Ogg file:  [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE
     #
     # Disc and track numbers are padded with zeros.
 
@@ -383,17 +379,13 @@ class Library
             file_fields = %w{artist date title}
         else
             if uniq_tag?('ARTIST')
-                if uniq_tag?('DATE')
-                    file_fields = %w{artist albumdate album index title}
-                else
-                    file_fields = %w{artist albumdate album index title date}
-                end
+                file_fields = %w{index title}
 
                 dir_fields = %w{artist albumdate album}
             else
-                file_fields = %w{album albumdate index artist title date}
+                file_fields = %w{index artist title}
 
-                dir_fields = %w{album albumdate}
+                dir_fields = %w{album}
             end
         end
 

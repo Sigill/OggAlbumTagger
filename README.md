@@ -89,13 +89,13 @@ __`auto rename`__: renames the directory and the files based on the tags. The ta
   Ogg files: ARTIST - DATE - TITLE.ogg
 * Albums
   Directory: ARTIST - DATE - ALBUM
-  Ogg files: ARTIST - DATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE.ogg
+  Ogg files: [DISCNUMBER.]TRACKNUMBER - TITLE.ogg
 * Single artist compilations (albums where tracks have different dates, like a best-of)
   Directory: ARTIST - ALBUMDATE - ALBUM
-  Ogg files: ARTIST - ALBUMDATE - ALBUM - [DISCNUMBER.]TRACKNUMBER - TITLE - DATE.ogg
+  Ogg files: [DISCNUMBER.]TRACKNUMBER - TITLE - DATE.ogg
 * Compilations
   Directory: ALBUM - ALBUMDATE|DATE
-  Ogg files: ALBUM - ALBUMDATE|DATE - [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE.ogg
+  Ogg files: [DISCNUMBER.]TRACKNUMBER - ARTIST - TITLE - DATE.ogg
 
 `DISCNUMBER` and `TRACKNUMBER` tags are automatically padded with zeros in order to be of equal length and allow alphabetical sort.
 
